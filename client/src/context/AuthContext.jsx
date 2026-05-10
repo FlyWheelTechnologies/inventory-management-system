@@ -12,28 +12,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Get current session when app loads
     const getSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error("Error getting session:", error.message);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        setUser(data?.session?.user ?? null);
+      } catch (err) {
+        console.error("Auth initialization failed:", err.message);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-
-      setUser(data?.session?.user ?? null);
-      setLoading(false);
     };
 
     getSession();
-
-    // Listen for auth state changes (login/logout)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   }, []);
 
   return (

@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate, Link } from "react-router-dom";
+import "./Auth.css";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@florzyangel.com");
+  const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg("");
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -20,133 +23,66 @@ export default function Login() {
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      setErrorMsg(error.message);
     } else {
       navigate("/dashboard");
     }
   };
 
+  const handleDemoLogin = () => {
+    // For demo/preview purposes, navigate directly to dashboard
+    navigate("/dashboard");
+  };
+
   return (
-    <>
-      <style>{`
-        * {
-          box-sizing: border-box;
-          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        }
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-logo">F</div>
+        <h2 className="auth-title">FlorzyAngel Enterprise</h2>
+        <p className="auth-subtitle">Login to your management system</p>
 
-        .login-container {
-          height: 100vh;
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+        {errorMsg && <div className="auth-error">{errorMsg}</div>}
 
-        .login-card {
-          background: #ffffff;
-          padding: 35px;
-          width: 100%;
-          max-width: 380px;
-          border-radius: 12px;
-          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-          text-align: center;
-        }
-
-        .login-card h2 {
-          margin-bottom: 5px;
-          color: #333;
-        }
-
-        .login-card p {
-          color: #666;
-          font-size: 14px;
-          margin-bottom: 20px;
-        }
-
-        .login-card input {
-          width: 100%;
-          padding: 12px;
-          margin-bottom: 15px;
-          border-radius: 8px;
-          border: 1px solid #ccc;
-          font-size: 14px;
-        }
-
-        .login-card input:focus {
-          outline: none;
-          border-color: #667eea;
-        }
-
-        .login-card button {
-          width: 100%;
-          padding: 12px;
-          background: #667eea;
-          color: #fff;
-          border: none;
-          border-radius: 8px;
-          font-size: 15px;
-          font-weight: bold;
-          cursor: pointer;
-          transition: background 0.3s;
-        }
-
-        .login-card button:hover {
-          background: #5a67d8;
-        }
-
-        .login-card button:disabled {
-          background: #999;
-          cursor: not-allowed;
-        }
-
-        .signup-text {
-          margin-top: 15px;
-          font-size: 14px;
-        }
-
-        .signup-text a {
-          color: #667eea;
-          text-decoration: none;
-          font-weight: bold;
-        }
-
-        .signup-text a:hover {
-          text-decoration: underline;
-        }
-      `}</style>
-
-      <div className="login-container">
-        <div className="login-card">
-          <h2>Welcome Back 👋</h2>
-          <p>Login to continue</p>
-
-          <form onSubmit={handleLogin}>
+        <form className="auth-form" onSubmit={handleLogin}>
+          <div className="form-group">
+            <label>Email Address</label>
             <input
               type="email"
-              placeholder="Email address"
+              placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+          </div>
 
+          <div className="form-group">
+            <label>Password</label>
             <input
               type="password"
-              placeholder="Password"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
 
-            <button type="submit" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
-            </button>
-          </form>
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? "Verifying..." : "Login"}
+          </button>
+        </form>
 
-          <p className="signup-text">
-            No account? <Link to="/signup">Create one</Link>
-          </p>
+        <div className="auth-divider">
+          <span>OR</span>
         </div>
+
+        <button onClick={handleDemoLogin} className="auth-btn auth-btn--demo">
+          Try Demo (Quick Preview)
+        </button>
+
+        <p className="auth-footer">
+          Don't have an account? <Link to="/signup">Contact Admin</Link>
+        </p>
       </div>
-    </>
+    </div>
   );
 }
