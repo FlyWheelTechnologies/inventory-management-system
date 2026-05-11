@@ -12,6 +12,95 @@ const AVATAR_PRESETS = [
   "/avatars/avatar4.png"
 ];
 
+const ProfileModal = ({ isOpen, onClose }) => {
+  const { user, updateUser } = useAuth();
+  const [name, setName] = useState(user?.full_name || "");
+  const [avatar, setAvatar] = useState(user?.avatar_url || "");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setName(user.full_name || "");
+      setAvatar(user.avatar_url || "");
+    }
+  }, [user]);
+
+  if (!isOpen) return null;
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const { data, error } = await supabase.auth.updateProfile({ full_name: name, avatar_url: avatar });
+    setLoading(false);
+    if (!error) {
+      updateUser(data);
+      onClose();
+    } else {
+      alert(error.message);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3>Profile Settings</h3>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSave} className="modal-body">
+          <div className="form-group">
+            <label>Display Name</label>
+            <input 
+              type="text" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              placeholder="Enter your name"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Select Profile Picture</label>
+            <div className="avatar-presets">
+              {AVATAR_PRESETS.map((url, i) => (
+                <div 
+                  key={i} 
+                  className={`preset-item ${avatar === url ? 'preset-item--active' : ''}`}
+                  onClick={() => setAvatar(url)}
+                >
+                  <img src={url} alt={`Preset ${i}`} />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '12px' }}>
+              <label style={{ fontSize: '11px', color: '#6b7280' }}>Or paste custom image URL</label>
+              <input 
+                type="text" 
+                value={avatar} 
+                onChange={(e) => setAvatar(e.target.value)} 
+                placeholder="https://example.com/photo.jpg"
+              />
+            </div>
+          </div>
+          {avatar && (
+            <div className="avatar-preview-container">
+              <div className="avatar-preview">
+                <img src={avatar} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
+              </div>
+              <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>Preview</span>
+            </div>
+          )}
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export default function Layout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -41,85 +130,6 @@ export default function Layout({ children }) {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
-  };
-
-  const ProfileModal = () => {
-    const [name, setName] = useState(user?.full_name || "");
-    const [avatar, setAvatar] = useState(user?.avatar_url || "");
-    const [loading, setLoading] = useState(false);
-
-    const handleSave = async (e) => {
-      e.preventDefault();
-      setLoading(true);
-      const { error } = await supabase.auth.updateProfile({ full_name: name, avatar_url: avatar });
-      setLoading(false);
-      if (!error) {
-        setShowProfileModal(false);
-        window.location.reload(); // Refresh to update context
-      } else {
-        alert(error.message);
-      }
-    };
-
-    return (
-      <div className="modal-overlay">
-        <div className="modal-card">
-          <div className="modal-header">
-            <h3>Profile Settings</h3>
-            <button className="close-btn" onClick={() => setShowProfileModal(false)}>✕</button>
-          </div>
-          <form onSubmit={handleSave} className="modal-body">
-            <div className="form-group">
-              <label>Display Name</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="Enter your name"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Select Profile Picture</label>
-              <div className="avatar-presets">
-                {AVATAR_PRESETS.map((url, i) => (
-                  <div 
-                    key={i} 
-                    className={`preset-item ${avatar === url ? 'preset-item--active' : ''}`}
-                    onClick={() => setAvatar(url)}
-                  >
-                    <img src={url} alt={`Preset ${i}`} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: '12px' }}>
-                <label style={{ fontSize: '11px', color: '#6b7280' }}>Or paste custom image URL</label>
-                <input 
-                  type="text" 
-                  value={avatar} 
-                  onChange={(e) => setAvatar(e.target.value)} 
-                  placeholder="https://example.com/photo.jpg"
-                />
-              </div>
-            </div>
-            {avatar && (
-              <div className="avatar-preview-container">
-                <div className="avatar-preview">
-                  <img src={avatar} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
-                </div>
-                <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>Preview</span>
-              </div>
-            )}
-            <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowProfileModal(false)}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -177,7 +187,7 @@ export default function Layout({ children }) {
         </div>
       </div>
 
-      {showProfileModal && <ProfileModal />}
+      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
 
       <style>{`
         .topbar__user-container {

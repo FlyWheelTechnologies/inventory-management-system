@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
 import ConfirmationModal from "../components/ConfirmationModal";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import "./Dashboard.css";
 
 const playSound = (type) => {
@@ -21,6 +23,8 @@ export default function Sales() {
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [search, setSearch] = useState('');
   
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
@@ -40,33 +44,92 @@ export default function Sales() {
     setCustomers(c || []);
   };
 
+  const generateReceipt = async (sale) => {
+    // Fetch items for this sale
+    const res = await fetch(`http://localhost:5000/api/sales/${sale.id}/items`);
+    const saleItems = await res.json();
+
+    const doc = new jsPDF({ format: [80, 150] }); // POS width 80mm
+    doc.setFontSize(12);
+    doc.text('FlorzyAngel ENT.', 40, 10, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text('Management System Receipt', 40, 14, { align: 'center' });
+    doc.text('------------------------------------------', 40, 18, { align: 'center' });
+    
+    doc.text(`Receipt #: ${sale.id}`, 5, 24);
+    doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 28);
+    doc.text(`Customer: ${sale.customer_name}`, 5, 32);
+    doc.text(`Attendant: ${sale.attendant_email}`, 5, 36);
+    
+    doc.autoTable({
+      startY: 40,
+      margin: { left: 5, right: 5 },
+      head: [['Item', 'Qty', 'Price', 'Sub']],
+      body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price, i.subtotal]),
+      theme: 'plain',
+      styles: { fontSize: 7, cellPadding: 1 },
+      headStyles: { fontStyle: 'bold' }
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 5;
+    doc.text(`TOTAL: GHS ${parseFloat(sale.total_amount).toFixed(2)}`, 45, finalY);
+    doc.text(`PAID: GHS ${parseFloat(sale.amount_paid).toFixed(2)}`, 45, finalY + 4);
+    doc.text(`BAL: GHS ${parseFloat(sale.balance_due).toFixed(2)}`, 45, finalY + 8);
+    
+    doc.text('------------------------------------------', 40, finalY + 14, { align: 'center' });
+    doc.text('Thank you for your business!', 40, finalY + 18, { align: 'center' });
+    
+    doc.save(`Receipt_${sale.id}.pdf`);
+  };
+
   const total = items.reduce((a, i) => a + (i.quantity * i.unit_price), 0);
   const balance = total - (parseFloat(amountPaid) || 0);
 
   const handleSubmit = async () => {
     if (items.length === 0 || !items[0].product_id) return setError('Please add at least one product.');
     
-    const { error: err } = await supabase.from("sales").insert([{
-      customer_id: customerId || null,
-      customer_name: customerName,
-      items: items.filter(i => i.product_id),
-      amount_paid: parseFloat(amountPaid) || 0,
-      payment_method: paymentMethod,
-      notes,
-    }]);
+    setError('');
+    const token = localStorage.getItem("auth_token");
+    const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
 
-    if (!err) {
+    try {
+      const { data: saleId, error } = await supabase.rpc('record_sale_transaction', {
+        p_customer_name: customerName,
+        p_amount_paid: parseFloat(amountPaid) || 0,
+        p_payment_method: paymentMethod,
+        p_items: items.filter(i => i.product_id).map(i => ({
+          product_id: i.product_id,
+          quantity: parseFloat(i.quantity),
+          unit_price: parseFloat(i.unit_price)
+        }))
+      });
+
+      if (error) throw error;
+
       playSound('success');
       setShowForm(false);
       setShowConfirm(false);
       setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
       setAmountPaid(''); setPaymentMethod('Cash'); setNotes(''); setCustomerId(''); setCustomerName('Walk-in Customer');
       fetchAll();
-    } else {
+    } catch (err) {
       playSound('error');
-      setError(err);
+      setError(err.message || 'Failed to record sale');
     }
   };
+
+  const [dateFilter, setDateFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const filtered = sales
+    .filter(s => s.customer_name?.toLowerCase().includes(search.toLowerCase()))
+    .filter(s => statusFilter === 'All' || s.payment_status === statusFilter)
+    .filter(s => !dateFilter || new Date(s.created_at).toDateString() === new Date(dateFilter).toDateString())
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div style={{ padding:24 }}>
@@ -175,28 +238,50 @@ export default function Sales() {
       )}
 
       <div className="table-card">
-        <div className="table-card__header"><h3 className="table-card__title">Recent Transactions</h3></div>
+        <div className="table-card__header">
+          <h3 className="table-card__title">Recent Transactions</h3>
+          <div className="table-card__actions">
+            <input type="date" style={miniInp} value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+            <select style={miniInp} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="All">All Status</option>
+              <option value="PAID">Paid</option>
+              <option value="PARTIAL">Partial</option>
+              <option value="CREDIT">Credit</option>
+            </select>
+            <input type="search" className="table-search" placeholder="Search customer..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
         <div className="table-wrapper">
           <table className="stock-table">
-            <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Method</th><th>Balance</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Bal</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-              {sales.length === 0 ? (
-                <tr><td colSpan="8" style={{textAlign:'center', padding:24}}>No transactions yet.</td></tr>
-              ) : sales.map(s => (
+              {paginated.length === 0 ? (
+                <tr><td colSpan="8" style={{textAlign:'center', padding:24}}>No transactions found.</td></tr>
+              ) : paginated.map(s => (
                 <tr key={s.id}>
                   <td className="table-code">#{s.id}</td>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td>{s.customer_name}</td>
                   <td style={{fontWeight:600}}>GHS {parseFloat(s.total_amount).toFixed(2)}</td>
                   <td>GHS {parseFloat(s.amount_paid).toFixed(2)}</td>
-                  <td><span style={{fontSize:11, background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontWeight: 600}}>{s.payment_method}</span></td>
                   <td style={{fontWeight:600, color: s.balance_due > 0 ? '#ef4444' : '#059669'}}>GHS {parseFloat(s.balance_due).toFixed(2)}</td>
                   <td><span className={`status-pill status-pill--${s.payment_status === 'PAID' ? 'ok' : 'low'}`}>{s.payment_status}</span></td>
+                  <td>
+                    <button onClick={() => generateReceipt(s)} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}} title="Download Receipt">📄</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div style={{ display:'flex', justifyContent:'center', gap:8, padding:16, borderTop:'1px solid #f3f4f6' }}>
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={miniInp}>Previous</button>
+            <div style={{ display:'flex', alignItems:'center', fontSize:13, fontWeight:600 }}>Page {currentPage} of {totalPages}</div>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} style={miniInp}>Next</button>
+          </div>
+        )}
       </div>
 
       <ConfirmationModal 
@@ -208,49 +293,10 @@ export default function Sales() {
         onCancel={() => setShowConfirm(false)}
         type="primary"
       />
-
-      <style>{`
-        .info-tip {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 14px; height: 14px;
-          background: #e5e7eb;
-          color: #6b7280;
-          border-radius: 50%;
-          font-size: 10px;
-          margin-left: 4px;
-          cursor: help;
-          position: relative;
-        }
-        .info-tip__content {
-          visibility: hidden;
-          width: 180px;
-          background-color: #374151;
-          color: #fff;
-          text-align: center;
-          border-radius: 6px;
-          padding: 8px;
-          position: absolute;
-          z-index: 10;
-          bottom: 125%;
-          left: 50%;
-          transform: translateX(-50%);
-          opacity: 0;
-          transition: opacity 0.2s;
-          font-weight: 400;
-          font-size: 11px;
-          line-height: 1.4;
-          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        }
-        .info-tip:hover .info-tip__content {
-          visibility: visible;
-          opacity: 1;
-        }
-      `}</style>
     </div>
   );
 }
 
 const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
 const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13 };
+const miniInp = { padding:'6px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', outline: 'none' };

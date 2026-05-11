@@ -12,6 +12,7 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [history, setHistory] = useState([]);
+  const [sortBy, setSortBy] = useState('name');
 
   useEffect(() => { fetchCustomers(); }, []);
 
@@ -36,10 +37,22 @@ export default function Customers() {
     setHistory(await res.json());
   };
 
-  const filtered = customers.filter(c => 
-    c.name?.toLowerCase().includes(search.toLowerCase()) || 
-    c.phone?.includes(search)
-  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const filtered = customers
+    .filter(c => 
+      c.name?.toLowerCase().includes(search.toLowerCase()) || 
+      c.phone?.includes(search)
+    )
+    .sort((a, b) => {
+      if (sortBy === 'spent') return (b.total_spent || 0) - (a.total_spent || 0);
+      if (sortBy === 'orders') return (b.transaction_count || 0) - (a.transaction_count || 0);
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div style={{ padding: 24 }}>
@@ -74,13 +87,20 @@ export default function Customers() {
         <div className="table-card">
           <div className="table-card__header">
             <h3 className="table-card__title">All Customers</h3>
-            <input type="search" className="table-search" placeholder="Search by name or phone..." value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="table-card__actions">
+              <select style={miniInp} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                <option value="name">Sort by Name</option>
+                <option value="spent">High Value (Spent)</option>
+                <option value="orders">Most Orders</option>
+              </select>
+              <input type="search" className="table-search" placeholder="Search..." value={search} onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} />
+            </div>
           </div>
           <div className="table-wrapper">
             <table className="stock-table">
               <thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Orders</th><th>Total Spent</th><th>Action</th></tr></thead>
               <tbody>
-                {filtered.map(c => (
+                {paginated.map(c => (
                   <tr key={c.id} style={{ background: selectedCustomer?.id === c.id ? '#eff6ff' : '' }}>
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
                     <td>
@@ -98,6 +118,14 @@ export default function Customers() {
               </tbody>
             </table>
           </div>
+          
+          {totalPages > 1 && (
+            <div style={{ display:'flex', justifyContent:'center', gap:8, padding:16, borderTop:'1px solid #f3f4f6' }}>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={miniInp}>Previous</button>
+              <div style={{ display:'flex', alignItems:'center', fontSize:13, fontWeight:600 }}>Page {currentPage} of {totalPages}</div>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} style={miniInp}>Next</button>
+            </div>
+          )}
         </div>
 
         {selectedCustomer && (
@@ -132,3 +160,4 @@ export default function Customers() {
 
 const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 };
 const inp = { width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd', fontSize: 13 };
+const miniInp = { padding:'6px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', outline: 'none' };

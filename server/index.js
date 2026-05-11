@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const { sendReceiptEmail, sendLowStockAlert } = require('./utils/mailer');
 require('dotenv').config();
 
 const app = express();
@@ -117,6 +118,15 @@ db.serialize(() => {
     details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Migration: Ensure users has full_name and avatar_url
+  db.run(`ALTER TABLE users ADD COLUMN full_name TEXT`, (err) => {});
+  db.run(`ALTER TABLE users ADD COLUMN avatar_url TEXT`, (err) => {});
+  db.run(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'storekeeper'`, (err) => {});
+
+  // Migration: Ensure customers has email and address
+  db.run(`ALTER TABLE customers ADD COLUMN email TEXT`, (err) => {});
+  db.run(`ALTER TABLE customers ADD COLUMN address TEXT`, (err) => {});
 
   // Default admin
   const adminEmail = 'admin@florzyangel.com';
@@ -237,11 +247,11 @@ app.get('/api/products', async (req, res) => {
 
 app.post('/api/products', async (req, res) => {
   try {
-    const { name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, user_email } = req.body;
+    const { name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, low_stock_threshold, user_email } = req.body;
     const item_code = req.body.item_code || await generateItemCode(category || 'General');
     await dbRun(
-      'INSERT INTO products (item_code, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity) VALUES (?,?,?,?,?,?,?,?,?)',
-      [item_code, name, category || 'General', buying_uom || 'Piece', selling_uom || 'Piece', conversion_factor || 1, cost_price || 0, selling_price || 0, stock_quantity || 0]
+      'INSERT INTO products (item_code, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, low_stock_threshold) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [item_code, name, category || 'General', buying_uom || 'Piece', selling_uom || 'Piece', conversion_factor || 1, cost_price || 0, selling_price || 0, stock_quantity || 0, low_stock_threshold || 10]
     );
     logAction(user_email || 'System', 'PRODUCT_CREATE', `Added ${name} [${item_code}]`);
     res.json({ item_code });
@@ -251,10 +261,10 @@ app.post('/api/products', async (req, res) => {
 });
 
 app.put('/api/products/:id', async (req, res) => {
-  const { name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity } = req.body;
+  const { name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, low_stock_threshold } = req.body;
   await dbRun(
-    'UPDATE products SET name=?, category=?, buying_uom=?, selling_uom=?, conversion_factor=?, cost_price=?, selling_price=?, stock_quantity=? WHERE id=?',
-    [name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, req.params.id]
+    'UPDATE products SET name=?, category=?, buying_uom=?, selling_uom=?, conversion_factor=?, cost_price=?, selling_price=?, stock_quantity=?, low_stock_threshold=? WHERE id=?',
+    [name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, low_stock_threshold, req.params.id]
   );
   res.json({ success: true });
 });
@@ -267,13 +277,17 @@ app.delete('/api/products/:id', async (req, res) => {
 
 // ── Customers ───────────────────────────────────────
 app.get('/api/customers', async (req, res) => {
-  const rows = await dbAll(`
-    SELECT c.*, 
-    (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as transaction_count,
-    (SELECT SUM(total_amount) FROM sales WHERE customer_id = c.id) as total_spent
-    FROM customers c ORDER BY c.name
-  `);
-  res.json(rows);
+  try {
+    const rows = await dbAll(`
+      SELECT c.*, 
+      (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as transaction_count,
+      (SELECT SUM(total_amount) FROM sales WHERE customer_id = c.id) as total_spent
+      FROM customers c ORDER BY c.name
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/customers', async (req, res) => {
@@ -366,6 +380,35 @@ app.post('/api/sales', async (req, res) => {
       [saleId, 'REVENUE', 0, total_amount, `Revenue from Sale #${saleId}`]);
 
     logAction(user_email || 'System', 'SALE_CREATE', `Sale #${saleId} - GHS ${total_amount} (${status})`);
+    
+    // Background Tasks: Emails
+    (async () => {
+      try {
+        // 1. Send Receipt to Customer
+        if (customer_id) {
+          const customer = await dbGet('SELECT * FROM customers WHERE id = ?', [customer_id]);
+          if (customer && customer.email) {
+            await sendReceiptEmail({ id: saleId, total_amount, amount_paid: paid, balance_due: balance, payment_status: status }, customer);
+          }
+        }
+
+        // 2. Check Low Stock & Notify Admin
+        if (items && items.length > 0) {
+          const admin = await dbGet('SELECT email FROM users WHERE role = "admin" LIMIT 1');
+          if (admin) {
+            for (const item of items) {
+              const product = await dbGet('SELECT * FROM products WHERE id = ?', [item.product_id]);
+              if (product && product.stock_quantity < product.low_stock_threshold) {
+                await sendLowStockAlert(admin.email, product);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Background Notification Error:', err);
+      }
+    })();
+
     res.json({ id: saleId, total_amount, balance_due: balance, payment_status: status });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -446,8 +489,12 @@ app.get('/api/logs', async (req, res) => {
 
 // ── Users (Admin) ───────────────────────────────────
 app.get('/api/users', requireRole('admin'), async (req, res) => {
-  const rows = await dbAll('SELECT id, email, role, full_name, avatar_url FROM users ORDER BY id');
-  res.json(rows);
+  try {
+    const rows = await dbAll('SELECT id, email, role, full_name, avatar_url FROM users ORDER BY id');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/users', requireRole('admin'), async (req, res) => {
@@ -457,6 +504,48 @@ app.post('/api/users', requireRole('admin'), async (req, res) => {
     if (err) return res.status(400).json({ error: 'Email already exists' });
     logAction(req.user.email, 'USER_CREATE', `Created new user: ${email} with role ${role}`);
     res.json({ success: true, id: this.lastID });
+  });
+});
+
+app.put('/api/users/:id', requireRole('admin'), async (req, res) => {
+  const { email, full_name, password, role } = req.body;
+  const targetId = parseInt(req.params.id);
+  
+  try {
+    let sql = 'UPDATE users SET email = ?, full_name = ?, role = ?';
+    let params = [email, full_name, role];
+    
+    if (password) {
+      const hash = await bcrypt.hash(password, 10);
+      sql += ', password = ?';
+      params.push(hash);
+    }
+    
+    sql += ' WHERE id = ?';
+    params.push(targetId);
+    
+    db.run(sql, params, function(err) {
+      if (err) return res.status(400).json({ error: err.message });
+      logAction(req.user.email, 'USER_UPDATE', `Updated user #${targetId} (${email})`);
+      res.json({ success: true });
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/users/:id', requireRole('admin'), async (req, res) => {
+  const targetId = parseInt(req.params.id);
+  const currentUserId = req.user.id;
+
+  if (targetId === currentUserId) {
+    return res.status(400).json({ error: 'You cannot delete your own account.' });
+  }
+
+  db.run('DELETE FROM users WHERE id = ?', [targetId], function(err) {
+    if (err) return res.status(400).json({ error: err.message });
+    logAction(req.user.email, 'USER_DELETE', `Deleted user #${targetId}`);
+    res.json({ success: true });
   });
 });
 

@@ -11,6 +11,9 @@ export default function AdminSettings() {
   const [newUser, setNewUser] = useState({ email: '', password: '', role: 'storekeeper', full_name: '' });
   const [error, setError] = useState('');
 
+  const [editUserId, setEditUserId] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
   useEffect(() => {
     if (currentUser?.role === 'admin') {
       fetchUsers();
@@ -27,32 +30,32 @@ export default function AdminSettings() {
     }
   };
 
-  const changeRole = async (userId, newRole) => {
-    setError('');
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch(`${API_URL}/users/${userId}/role`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ role: newRole }),
-    });
+  const deleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
     
-    if (!res.ok) {
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(`${API_URL}/users/${userId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      fetchUsers();
+    } else {
       const data = await res.json();
       setError(data.error);
-    } else {
-      fetchUsers();
     }
   };
 
-  const handleAddUser = async (e) => {
+  const handleUserSubmit = async (e) => {
     e.preventDefault();
     setError('');
     const token = localStorage.getItem("auth_token");
-    const res = await fetch(`${API_URL}/users`, {
-      method: 'POST',
+    const url = editUserId ? `${API_URL}/users/${editUserId}` : `${API_URL}/users`;
+    const method = editUserId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -63,11 +66,19 @@ export default function AdminSettings() {
     if (res.ok) {
       setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
       setShowAddUser(false);
+      setEditUserId(null);
       fetchUsers();
     } else {
       const data = await res.json();
       setError(data.error);
     }
+  };
+
+  const startEdit = (u) => {
+    setEditUserId(u.id);
+    setNewUser({ email: u.email, password: '', role: u.role, full_name: u.full_name || '' });
+    setShowAddUser(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (currentUser?.role !== 'admin') {
@@ -92,7 +103,10 @@ export default function AdminSettings() {
           <h2 className="section-title">Admin Settings</h2>
           <p style={{ color:'#6b7280', fontSize:13 }}>Manage users and role-based access control</p>
         </div>
-        <button className="quick-action-btn" onClick={() => setShowAddUser(!showAddAddUser)}>
+        <button className="quick-action-btn" onClick={() => {
+          setShowAddUser(!showAddUser);
+          if (showAddUser) { setEditUserId(null); setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' }); }
+        }}>
           {showAddUser ? 'Cancel' : '+ Add New Staff'}
         </button>
       </div>
@@ -105,8 +119,10 @@ export default function AdminSettings() {
 
       {showAddUser && (
         <div className="table-card" style={{ marginBottom: 24 }}>
-          <div className="table-card__header"><h3 className="table-card__title">Create New Staff Account</h3></div>
-          <form onSubmit={handleAddUser} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+          <div className="table-card__header">
+            <h3 className="table-card__title">{editUserId ? 'Update Staff Account' : 'Create New Staff Account'}</h3>
+          </div>
+          <form onSubmit={handleUserSubmit} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div>
               <label style={lbl}>Full Name</label>
               <input style={inp} type="text" value={newUser.full_name} onChange={e => setNewUser({...newUser, full_name: e.target.value})} required />
@@ -116,8 +132,23 @@ export default function AdminSettings() {
               <input style={inp} type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} required />
             </div>
             <div>
-              <label style={lbl}>Temporary Password</label>
-              <input style={inp} type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} required />
+              <label style={lbl}>{editUserId ? 'New Password (leave blank to keep current)' : 'Temporary Password'}</label>
+              <div style={{ position:'relative' }}>
+                <input 
+                  style={inp} 
+                  type={showPassword ? "text" : "password"} 
+                  value={newUser.password} 
+                  onChange={e => setNewUser({...newUser, password: e.target.value})} 
+                  required={!editUserId} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position:'absolute', right:8, top:8, background:'none', border:'none', fontSize:12, cursor:'pointer', color:'#6b7280' }}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
             <div>
               <label style={lbl}>Role</label>
@@ -127,7 +158,9 @@ export default function AdminSettings() {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }}>Create User</button>
+            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }}>
+              {editUserId ? 'Save Changes' : 'Create User'}
+            </button>
           </form>
         </div>
       )}
@@ -145,7 +178,7 @@ export default function AdminSettings() {
         <div className="table-card__header"><h3 className="table-card__title">System Users</h3></div>
         <div className="table-wrapper">
           <table className="stock-table">
-            <thead><tr><th>Email</th><th>Full Name</th><th>Current Role</th><th>Change Role</th></tr></thead>
+            <thead><tr><th>Email</th><th>Full Name</th><th>Current Role</th><th>Actions</th></tr></thead>
             <tbody>
               {users.map(u => (
                 <tr key={u.id}>
@@ -154,18 +187,21 @@ export default function AdminSettings() {
                   <td>
                     <span style={{ background:ROLE_INFO[u.role]?.bg || '#f3f4f6', color:ROLE_INFO[u.role]?.color || '#374151', padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600 }}>{u.role}</span>
                   </td>
-                  <td>
-                    <select 
-                      style={{ padding:6, borderRadius:6, border:'1px solid #ddd', fontSize:13, cursor: u.id === currentUser?.id ? 'not-allowed' : 'pointer' }} 
-                      value={u.role} 
-                      onChange={e => changeRole(u.id, e.target.value)}
-                      disabled={u.id === currentUser?.id}
-                      title={u.id === currentUser?.id ? "You cannot change your own role" : ""}
+                  <td style={{ display:'flex', gap:10 }}>
+                    <button 
+                      onClick={() => startEdit(u)} 
+                      style={{ background:'none', border:'none', cursor:'pointer', color:'#2563eb', fontWeight:600, fontSize:13 }}
                     >
-                      <option value="admin">Admin</option>
-                      <option value="storekeeper">Storekeeper</option>
-                      <option value="auditor">Auditor</option>
-                    </select>
+                      Edit
+                    </button>
+                    {u.id !== currentUser?.id && (
+                      <button 
+                        onClick={() => deleteUser(u.id)} 
+                        style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', fontWeight:600, fontSize:13 }}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

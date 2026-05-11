@@ -168,6 +168,24 @@
 .online-badge--on .online-badge__dot { background: #10b981; }
 .online-badge--off .online-badge__dot { background: #f59e0b; }
 
+/* Global InfoTip */
+.info-tip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  color: #9ca3af;
+  margin-left: 6px;
+}
+.info-tip:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 125%; left: 50%; transform: translateX(-50%);
+  background: #1f2937; color: #fff;
+  padding: 6px 10px; border-radius: 4px;
+  font-size: 11px; white-space: nowrap;
+  z-index: 10;
+}
+
 /* ──────────────────────────────────────────────
    PAGE CONTENT LAYOUT
    ────────────────────────────────────────────── */
@@ -450,3 +468,8 @@
   color: #9ca3af;
   margin-top: 2px;
 }
+
+/* Info Tooltips */
+.info-tip { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; background: #e5e7eb; color: #6b7280; border-radius: 50%; font-size: 10px; margin-left: 4px; cursor: help; position: relative; }
+.info-tip__content { visibility: hidden; width: 180px; background-color: #374151; color: #fff; text-align: center; border-radius: 6px; padding: 8px; position: absolute; z-index: 1000; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-weight: 400; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+.info-tip:hover .info-tip__content { visibility: visible; opacity: 1; }

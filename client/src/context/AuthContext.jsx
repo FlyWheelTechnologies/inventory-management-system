@@ -10,26 +10,35 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get current session when app loads
-    const getSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        setUser(data?.session?.user ?? null);
-      } catch (err) {
-        console.error("Auth initialization failed:", err.message);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
 
+  const login = (userData, token) => {
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("auth_token", token);
+    setUser(userData);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("auth_token");
+    setUser(null);
+    window.location.href = "/login";
+  };
+
+  const updateUser = (userData) => {
+    const updated = { ...user, ...userData };
+    localStorage.setItem("user", JSON.stringify(updated));
+    setUser(updated);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
-      {loading ? <p>Loading...</p> : children}
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

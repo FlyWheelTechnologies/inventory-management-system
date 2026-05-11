@@ -1,21 +1,37 @@
-import { useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { supabase } from "../services/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
 export default function Login() {
-  const [email, setEmail] = useState("admin@florzyangel.com");
-  const [password, setPassword] = useState("admin123");
+  const [view, setView] = useState("landing"); // 'landing' or 'login'
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
+
+  useEffect(() => {
+    // If not first time, skip landing page
+    const hasVisited = localStorage.getItem("flywheel_visited");
+    if (hasVisited) {
+      setView("login");
+    }
+  }, []);
+
+  const handleStart = () => {
+    localStorage.setItem("flywheel_visited", "true");
+    setView("login");
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -25,21 +41,51 @@ export default function Login() {
     if (error) {
       setErrorMsg(error.message);
     } else {
+      // In Full Supabase mode, the login helper updates local state
+      login(data.user, data.session.access_token);
       navigate("/dashboard");
     }
   };
 
-  const handleDemoLogin = () => {
-    // For demo/preview purposes, navigate directly to dashboard
-    navigate("/dashboard");
-  };
+  if (view === "landing") {
+    return (
+      <div className="auth-container landing-bg">
+        <div className="landing-card animate-fade-in">
+          <div className="flywheel-container">
+            <div className="flywheel-spinning">
+              <div className="spoke"></div>
+              <div className="spoke"></div>
+              <div className="spoke"></div>
+              <div className="spoke"></div>
+            </div>
+          </div>
+          <h1 className="landing-title">Flywheel</h1>
+          <p className="landing-subtitle">Advanced Stock & Accounting Suite</p>
+          <div className="landing-features">
+            <div className="feature-pill">Multi-Tenant Ready</div>
+            <div className="feature-pill">Double-Entry Accounting</div>
+            <div className="feature-pill">Real-time Inventory</div>
+          </div>
+          <button onClick={handleStart} className="auth-btn landing-btn">
+            Enter System
+          </button>
+          <p className="landing-footer">
+            Interested in building your own software? <br/>
+            <a href="https://bookflywheel.com" target="_blank" rel="noreferrer">bookflywheel.com</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-logo">F</div>
-        <h2 className="auth-title">FlorzyAngel Enterprise</h2>
-        <p className="auth-subtitle">Login to your management system</p>
+      <div className="auth-card animate-slide-up">
+        <div className="auth-logo-small">
+          <div className="flywheel-static"></div>
+        </div>
+        <h2 className="auth-title">Welcome Back</h2>
+        <p className="auth-subtitle">Login to your Flywheel instance</p>
 
         {errorMsg && <div className="auth-error">{errorMsg}</div>}
 
@@ -67,21 +113,18 @@ export default function Login() {
           </div>
 
           <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Verifying..." : "Login"}
+            {loading ? "Authenticating..." : "Login"}
           </button>
         </form>
 
-        <div className="auth-divider">
-          <span>OR</span>
-        </div>
-
-        <button onClick={handleDemoLogin} className="auth-btn auth-btn--demo">
-          Try Demo (Quick Preview)
-        </button>
-
         <p className="auth-footer">
-          Don't have an account? <Link to="/signup">Contact Admin</Link>
+          Don't have an account? <a href="mailto:gokronipa@icloud.com">Request Access</a>
         </p>
+        
+        <div className="login-external-link">
+           <p>Interested in building your own software?</p>
+           <a href="https://bookflywheel.com" target="_blank" rel="noreferrer">Contact us at bookflywheel.com</a>
+        </div>
       </div>
     </div>
   );

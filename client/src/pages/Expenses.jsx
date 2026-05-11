@@ -24,6 +24,17 @@ export default function Expenses() {
     fetchExpenses();
   };
 
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const filtered = expenses
+    .filter(e => e.description.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const totalExpenses = expenses.reduce((a, e) => a + parseFloat(e.amount), 0);
 
   return (
@@ -58,13 +69,23 @@ export default function Expenses() {
       )}
 
       <div className="table-card">
+        <div className="table-card__header">
+          <h3 className="table-card__title">Expense Ledger</h3>
+          <input 
+            type="search" 
+            className="table-search" 
+            placeholder="Search description..." 
+            value={search} 
+            onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} 
+          />
+        </div>
         <div className="table-wrapper">
           <table className="stock-table">
             <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>By</th></tr></thead>
             <tbody>
-              {expenses.length === 0 ? (
-                <tr><td colSpan="5" style={{textAlign:'center', padding:24}}>No expenses recorded.</td></tr>
-              ) : expenses.map(e => (
+              {paginated.length === 0 ? (
+                <tr><td colSpan="5" style={{textAlign:'center', padding:24}}>No expenses found.</td></tr>
+              ) : paginated.map(e => (
                 <tr key={e.id}>
                   <td style={{fontSize:12, color:'#6b7280'}}>{new Date(e.created_at).toLocaleDateString()}</td>
                   <td style={{fontWeight:500}}>{e.description}</td>
@@ -76,6 +97,14 @@ export default function Expenses() {
             </tbody>
           </table>
         </div>
+        
+        {totalPages > 1 && (
+          <div style={{ display:'flex', justifyContent:'center', gap:8, padding:16, borderTop:'1px solid #f3f4f6' }}>
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={miniInp}>Previous</button>
+            <div style={{ display:'flex', alignItems:'center', fontSize:13, fontWeight:600 }}>Page {currentPage} of {totalPages}</div>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} style={miniInp}>Next</button>
+          </div>
+        )}
       </div>
     </div>
   );
