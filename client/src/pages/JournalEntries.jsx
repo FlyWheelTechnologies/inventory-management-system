@@ -41,6 +41,28 @@ export default function JournalEntries() {
     window.print();
   };
 
+  const handleExportCSV = () => {
+    const headers = ["Date", "Account", "Debit", "Credit", "Description"];
+    const rows = filteredJournal.map(j => [
+      new Date(j.created_at).toLocaleString(),
+      j.account_type,
+      j.debit.toFixed(2),
+      j.credit.toFixed(2),
+      j.description
+    ]);
+    
+    const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Flywheel_Ledger_${selectedDate}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ padding: 24 }} className="journal-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -53,6 +75,9 @@ export default function JournalEntries() {
             onChange={e => setSelectedDate(e.target.value)} 
             style={{ width: 160 }}
           />
+          <button onClick={handleExportCSV} className="action-btn" style={{ background: '#059669', color: '#fff' }}>
+            Export CSV
+          </button>
           <button onClick={handlePrint} className="action-btn" style={{ background: '#333', color: '#fff' }}>
             Print Ledger
           </button>
