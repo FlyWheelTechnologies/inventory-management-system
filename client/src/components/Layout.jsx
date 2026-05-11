@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import OfflineBanner from "./OfflineBanner";
+import InstallPWA from "./InstallPWA";
 import { SyncService } from "../services/SyncService";
 import "../pages/Dashboard.css";
 
@@ -193,6 +194,7 @@ export default function Layout({ children }) {
             </div>
           </div>
         </header>
+        <InstallPWA />
         <OfflineBanner />
         <div className="page-content" style={{ overflowY: 'auto', display: 'block' }}>
           {children}
