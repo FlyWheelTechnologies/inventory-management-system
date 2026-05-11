@@ -59,9 +59,11 @@ db.serialize(() => {
 
   db.run(`CREATE TABLE IF NOT EXISTS customers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    name TEXT,
     phone TEXT,
-    is_contractor INTEGER DEFAULT 0,
+    email TEXT,
+    address TEXT,
+    is_contractor BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
@@ -265,15 +267,28 @@ app.delete('/api/products/:id', async (req, res) => {
 
 // ── Customers ───────────────────────────────────────
 app.get('/api/customers', async (req, res) => {
-  const rows = await dbAll('SELECT * FROM customers ORDER BY name');
+  const rows = await dbAll(`
+    SELECT c.*, 
+    (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as transaction_count,
+    (SELECT SUM(total_amount) FROM sales WHERE customer_id = c.id) as total_spent
+    FROM customers c ORDER BY c.name
+  `);
   res.json(rows);
 });
 
 app.post('/api/customers', async (req, res) => {
-  const { name, phone, is_contractor } = req.body;
-  const result = await dbRun('INSERT INTO customers (name, phone, is_contractor) VALUES (?, ?, ?)', [name, phone || '', is_contractor ? 1 : 0]);
+  const { name, phone, email, address, is_contractor } = req.body;
+  const result = await dbRun(
+    'INSERT INTO customers (name, phone, email, address, is_contractor) VALUES (?,?,?,?,?)',
+    [name, phone, email || '', address || '', is_contractor ? 1 : 0]
+  );
   logAction(req.body.user_email || 'System', 'CUSTOMER_CREATE', `Added ${name}`);
   res.json({ id: result.lastID });
+});
+
+app.get('/api/customers/:id/sales', async (req, res) => {
+  const rows = await dbAll('SELECT * FROM sales WHERE customer_id = ? ORDER BY created_at DESC', [req.params.id]);
+  res.json(rows);
 });
 
 // ── Debtors ─────────────────────────────────────────
