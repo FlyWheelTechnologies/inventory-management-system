@@ -11,7 +11,7 @@
 //   URL: https://<your-project>.supabase.co/functions/v1/send-receipt
 //   Headers: Authorization: Bearer <your-service-role-key>
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '../_shared/resend.ts';
 
 Deno.serve(async (req: Request) => {

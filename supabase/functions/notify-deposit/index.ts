@@ -15,7 +15,7 @@
 // This notifies admins when a new deposit order comes in,
 // so they can prepare the order for fulfillment.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '../_shared/resend.ts';
 
 Deno.serve(async (req: Request) => {

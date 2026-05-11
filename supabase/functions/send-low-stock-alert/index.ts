@@ -14,7 +14,7 @@
 // This function fires on every product update but only sends an email
 // when stock has newly dropped below the low_stock_threshold.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '../_shared/resend.ts';
 
 Deno.serve(async (req: Request) => {
