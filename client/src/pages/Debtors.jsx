@@ -19,8 +19,11 @@ export default function Debtors() {
   return (
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <h2 className="section-title">Debtors Ledger</h2>
-        <div className="summary-card" style={{ padding:'10px 20px' }}>
+        <div>
+          <h2 className="section-title">Debtors Ledger</h2>
+          <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Track credit customers and outstanding Momo/Cash payments</p>
+        </div>
+        <div className="summary-card" style={{ padding:'10px 20px', width: 'auto' }}>
           <span style={{ fontSize:12, color:'#6b7280' }}>Total Outstanding: </span>
           <span style={{ fontSize:18, fontWeight:700, color:'#ef4444' }}>GHS {totalDebt.toFixed(2)}</span>
         </div>

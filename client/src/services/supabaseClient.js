@@ -59,23 +59,61 @@ export const supabase = {
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
   },
 
-  from: (table) => ({
-    select: async () => {
-      try {
-        const res = await fetch(`${API_URL}/${table}`);
-        return { data: await res.json(), error: null };
-      } catch (err) { return { data: [], error: err }; }
-    },
-    insert: async (rows) => {
-      try {
-        const user = JSON.parse(localStorage.getItem("auth_user") || "{}");
-        const row = Array.isArray(rows) ? rows[0] : rows;
-        const res = await fetch(`${API_URL}/${table}`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...row, user_email: user?.email }),
-        });
-        return { data: await res.json(), error: null };
-      } catch (err) { return { data: null, error: err }; }
-    },
-  }),
+  from: (table) => {
+    const cacheKey = `cache_${table}`;
+    const cacheTimeKey = `cache_${table}_time`;
+    const CACHE_DURATION = 60 * 1000; // 1 minute
+
+    return {
+      select: async () => {
+        try {
+          // Check cache
+          const cachedData = localStorage.getItem(cacheKey);
+          const cachedTime = localStorage.getItem(cacheTimeKey);
+          if (cachedData && cachedTime && (Date.now() - parseInt(cachedTime) < CACHE_DURATION)) {
+            return { data: JSON.parse(cachedData), error: null, fromCache: true };
+          }
+
+          const res = await fetch(`${API_URL}/${table}`);
+          const data = await res.json();
+          
+          // Update cache
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+          localStorage.setItem(cacheTimeKey, Date.now().toString());
+          
+          return { data, error: null };
+        } catch (err) { 
+          return { data: [], error: supabase.getErrorMessage(err) }; 
+        }
+      },
+      insert: async (rows) => {
+        try {
+          const user = JSON.parse(localStorage.getItem("auth_user") || "{}");
+          const row = Array.isArray(rows) ? rows[0] : rows;
+          const res = await fetch(`${API_URL}/${table}`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...row, user_email: user?.email }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+
+          // Clear cache on mutation
+          localStorage.removeItem(cacheKey);
+          localStorage.removeItem(cacheTimeKey);
+
+          return { data, error: null };
+        } catch (err) { 
+          return { data: null, error: supabase.getErrorMessage(err) }; 
+        }
+      },
+    };
+  },
+
+  getErrorMessage: (err) => {
+    const msg = err.message || "";
+    if (msg.includes("Failed to fetch")) return "Network error: Please check your internet connection or server status.";
+    if (msg.includes("401")) return "Session expired: Please log in again.";
+    if (msg.includes("403")) return "Access denied: You don't have permission for this action.";
+    return msg || "An unexpected error occurred. Please try again.";
+  },
 };

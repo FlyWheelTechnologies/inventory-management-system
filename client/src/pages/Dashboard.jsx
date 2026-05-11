@@ -85,13 +85,19 @@ export default function Dashboard() {
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 className="section-title">
-          {getGreeting()}, <span style={{ color: '#2563eb' }}>{userName}</span>
-        </h2>
-        <p style={{ color: '#6b7280', fontSize: '13px' }}>
-          It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div>
+          <h2 className="section-title">
+            {getGreeting()}, <span style={{ color: '#2563eb' }}>{userName}</span>
+          </h2>
+          <p style={{ color: '#6b7280', fontSize: '13px' }}>
+            It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="quick-action-btn" style={{ background: '#374151' }}>Download Report</button>
+          <button className="quick-action-btn">System Audit</button>
+        </div>
       </div>
 
       <div className="kpi-row">

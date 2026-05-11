@@ -6,12 +6,10 @@ import { useNavigate } from "react-router-dom";
 import "../pages/Dashboard.css";
 
 const AVATAR_PRESETS = [
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Anya",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Jack",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Lily",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Milo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie"
+  "/avatars/avatar1.png",
+  "/avatars/avatar2.png",
+  "/avatars/avatar3.png",
+  "/avatars/avatar4.png"
 ];
 
 export default function Layout({ children }) {
@@ -134,7 +132,7 @@ export default function Layout({ children }) {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar__left">
-            <h1 className="topbar__title">FlorzyAngel Enterprise System</h1>
+            <h1 className="topbar__title">FlorzyAngel ENT. Management System</h1>
           </div>
 
           <div className="topbar__center">

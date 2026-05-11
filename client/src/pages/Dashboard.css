@@ -284,26 +284,34 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 14px;
+  padding: 16px 20px;
   border-bottom: 1px solid #f1f2f6;
+  gap: 12px;
+}
+.table-card__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 .table-card__title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: #111827;
+  flex: 1;
 }
 
 .table-search {
-  padding: 7px 12px;
+  padding: 8px 14px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   font-size: 13px;
   color: #374151;
   outline: none;
-  transition: border-color 0.15s;
-  width: 200px;
+  transition: all 0.15s;
+  width: 220px;
+  background: #f9fafb;
 }
-.table-search:focus { border-color: #2563eb; }
+.table-search:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
 
 .table-wrapper { overflow-x: auto; }
 
@@ -386,23 +394,24 @@
 .quick-action-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 14px;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
   border: none;
-  border-radius: 9px;
+  border-radius: 8px;
   background: #2563eb;
   color: #ffffff;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  text-align: left;
-  transition: background 0.15s, transform 0.12s;
+  transition: all 0.2s;
   font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 .quick-action-btn:hover {
   background: #1d4ed8;
   transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.25);
 }
 .quick-action-btn:active { transform: translateY(0); }
 

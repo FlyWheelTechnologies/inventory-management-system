@@ -29,13 +29,16 @@ export default function Expenses() {
   return (
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <h2 className="section-title">Expenses</h2>
+        <div>
+          <h2 className="section-title">Expenses</h2>
+          <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Record operational costs like utilities, salaries, and maintenance</p>
+        </div>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <div className="summary-card" style={{ padding:'10px 20px' }}>
+          <div className="summary-card" style={{ padding:'10px 20px', width: 'auto' }}>
             <span style={{ fontSize:12, color:'#6b7280' }}>Total: </span>
             <span style={{ fontSize:18, fontWeight:700 }}>GHS {totalExpenses.toFixed(2)}</span>
           </div>
-          <button className="quick-action-btn" onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Record Expense'}</button>
+          <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Record Expense'}</button>
         </div>
       </div>
 
