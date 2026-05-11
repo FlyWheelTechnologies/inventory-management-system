@@ -45,20 +45,22 @@ export const SyncService = {
           // Send to Supabase
           const { error } = await supabase.from(item.table).insert([item.payload]);
           if (!error) {
+            console.log(`✅ Successfully synced INSERT for ${item.table}`);
             // Mark local as synced
             await db[item.table].where('supabase_id').equals(item.payload.supabase_id).modify({ sync_status: 'synced' });
             await db.sync_queue.delete(item.id);
           } else {
-            console.error(`Failed to sync INSERT for ${item.table}`, error);
+            console.error(`❌ Failed to sync INSERT for ${item.table}`, error);
             // If it's a 400 or something unrecoverable without changes, we might need a dead-letter queue, 
             // but we'll leave it in the queue for now.
           }
         } else if (item.operation === 'RPC') {
           const { error } = await supabase.rpc(item.table, item.payload);
           if (!error) {
+            console.log(`✅ Successfully synced RPC ${item.table}`);
             await db.sync_queue.delete(item.id);
           } else {
-            console.error(`Failed to sync RPC ${item.table}`, error);
+            console.error(`❌ Failed to sync RPC ${item.table}`, error);
           }
         } else if (item.operation === 'UPDATE') {
           const { error } = await supabase.from(item.table).update(item.payload).eq('id', item.payload.supabase_id);
