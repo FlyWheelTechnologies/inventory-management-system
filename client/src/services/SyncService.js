@@ -42,8 +42,21 @@ export const SyncService = {
     for (const item of queue) {
       try {
         if (item.operation === 'INSERT') {
-          // Send to Supabase
-          const { error } = await supabase.from(item.table).insert([item.payload]);
+          // Map local 'supabase_id' to Supabase 'id'
+          const pushPayload = { ...item.payload, id: item.payload.supabase_id };
+          delete pushPayload.supabase_id;
+
+          // Ensure numeric fields are numbers (Supabase can be strict)
+          if (item.table === 'expenses' && pushPayload.amount) {
+            pushPayload.amount = Number(pushPayload.amount);
+          }
+          if (item.table === 'sales') {
+            if (pushPayload.total_amount) pushPayload.total_amount = Number(pushPayload.total_amount);
+            if (pushPayload.amount_paid) pushPayload.amount_paid = Number(pushPayload.amount_paid);
+            if (pushPayload.balance_due) pushPayload.balance_due = Number(pushPayload.balance_due);
+          }
+
+          const { error } = await supabase.from(item.table).insert([pushPayload]);
           if (!error) {
             console.log(`✅ Successfully synced INSERT for ${item.table}`);
             // Mark local as synced
@@ -51,8 +64,11 @@ export const SyncService = {
             await db.sync_queue.delete(item.id);
           } else {
             console.error(`❌ Failed to sync INSERT for ${item.table}`, error);
-            // If it's a 400 or something unrecoverable without changes, we might need a dead-letter queue, 
-            // but we'll leave it in the queue for now.
+            // If it's a conflict or already exists, we can still consider it synced
+            if (error.code === '23505') {
+              await db[item.table].where('supabase_id').equals(item.payload.supabase_id).modify({ sync_status: 'synced' });
+              await db.sync_queue.delete(item.id);
+            }
           }
         } else if (item.operation === 'RPC') {
           const { error } = await supabase.rpc(item.table, item.payload);
@@ -63,14 +79,24 @@ export const SyncService = {
             console.error(`❌ Failed to sync RPC ${item.table}`, error);
           }
         } else if (item.operation === 'UPDATE') {
-          const { error } = await supabase.from(item.table).update(item.payload).eq('id', item.payload.supabase_id);
+          const pushPayload = { ...item.payload };
+          const remoteId = pushPayload.supabase_id || pushPayload.id;
+          delete pushPayload.supabase_id;
+          delete pushPayload.id; // Don't try to update the ID column
+
+          const { error } = await supabase.from(item.table).update(pushPayload).eq('id', remoteId);
           if (!error) {
             await db.sync_queue.delete(item.id);
+          } else {
+            console.error(`❌ Failed to sync UPDATE for ${item.table}`, error);
           }
         } else if (item.operation === 'DELETE') {
-          const { error } = await supabase.from(item.table).delete().eq('id', item.payload.supabase_id);
+          const remoteId = item.payload.supabase_id || item.payload.id;
+          const { error } = await supabase.from(item.table).delete().eq('id', remoteId);
           if (!error) {
             await db.sync_queue.delete(item.id);
+          } else {
+            console.error(`❌ Failed to sync DELETE for ${item.table}`, error);
           }
         }
       } catch (err) {
