@@ -216,7 +216,7 @@ export default function Layout({ children }) {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar__left">
-            <h1 className="topbar__title">Flywheel Stock Management</h1>
+            <h1 className="topbar__title">FlorzyAngel Enterprise</h1>
           </div>
 
           <div className="topbar__center">
