@@ -5,24 +5,15 @@ import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
 export default function Login() {
-  const [view, setView] = useState("landing"); // 'landing' or 'login'
-  const [email, setEmail] = useState("florzyangel@gmail.com");
-  const [password, setPassword] = useState("Admin123");
+  const [view, setView] = useState("login"); // Default to login
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  useEffect(() => {
-    // If not first time, skip landing page
-    const hasVisited = localStorage.getItem("flywheel_visited");
-    if (hasVisited) {
-      setView("login");
-    }
-  }, []);
-
   const handleStart = () => {
-    localStorage.setItem("flywheel_visited", "true");
     setView("login");
   };
 
