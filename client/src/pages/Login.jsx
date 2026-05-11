@@ -51,14 +51,6 @@ export default function Login() {
     return (
       <div className="auth-container landing-bg">
         <div className="landing-card animate-fade-in">
-          <div className="flywheel-container">
-            <div className="flywheel-spinning">
-              <div className="spoke"></div>
-              <div className="spoke"></div>
-              <div className="spoke"></div>
-              <div className="spoke"></div>
-            </div>
-          </div>
           <h1 className="landing-title">Flywheel</h1>
           <p className="landing-subtitle">Advanced Stock & Accounting Suite</p>
           <div className="landing-features">
@@ -81,9 +73,6 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card animate-slide-up">
-        <div className="auth-logo-small">
-          <div className="flywheel-static"></div>
-        </div>
         <h2 className="auth-title">Welcome Back</h2>
         <p className="auth-subtitle">Login to manage your inventory and accounts  </p>
 

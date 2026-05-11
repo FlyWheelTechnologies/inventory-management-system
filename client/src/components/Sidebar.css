@@ -28,18 +28,13 @@
   align-items: center;
   gap: 10px;
   padding: 18px 14px;
-  border-bottom: 1px solid #e8eaf0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   min-height: 60px;
 }
 
 .sidebar__logo-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  background: var(--brand-primary);
-  color: #fff;
-  font-weight: 700;
-  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
