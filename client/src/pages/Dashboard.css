@@ -357,6 +357,7 @@
 }
 .stock-table tbody tr { transition: background 0.12s; }
 .stock-table tbody tr:hover { background: #f9fafb; }
+.clickable-row:hover { background: #f3f4f6 !important; }
 .stock-table tbody tr:last-child td { border-bottom: none; }
 .table-code {
   font-family: 'Courier New', monospace;

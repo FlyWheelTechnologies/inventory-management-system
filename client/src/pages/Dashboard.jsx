@@ -126,8 +126,9 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="greeting-card__content">
-            <h1 className="greeting-title">FlorzyAngel Enterprise</h1>
-            <p className="greeting-sub">
+            <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
+            <h2 className="greeting-title" style={{ fontSize: 16, color: '#6b7280', fontWeight: 500 }}>FlorzyAngel Enterprise</h2>
+            <p className="greeting-sub" style={{ marginTop: 8 }}>
               {lowStockCount > 0 
                 ? `You have ${lowStockCount} items running low. ` 
                 : 'All stock levels are healthy. '}
@@ -261,13 +262,18 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {products.slice(0, 8).map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.name}</td>
+                  <tr 
+                    key={p.id} 
+                    onClick={() => navigate("/products")} 
+                    style={{ cursor: 'pointer' }}
+                    className="clickable-row"
+                  >
+                    <td style={{ fontWeight: 500 }}>{p.name}</td>
                     <td>{p.stock_quantity}</td>
                     <td>{p.selling_uom}</td>
                     <td>
-                      <span className={`status-pill status-pill--${p.stock_quantity < 10 ? 'low' : 'ok'}`}>
-                        {p.stock_quantity < 10 ? 'Low' : 'OK'}
+                      <span className={`status-pill status-pill--${p.stock_quantity < (p.low_stock_threshold || 10) ? 'low' : 'ok'}`}>
+                        {p.stock_quantity < (p.low_stock_threshold || 10) ? 'Low' : 'OK'}
                       </span>
                     </td>
                   </tr>
