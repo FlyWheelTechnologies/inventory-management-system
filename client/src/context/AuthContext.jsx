@@ -17,16 +17,21 @@ export function AuthProvider({ children }) {
 
   const fetchProfile = async (sessionUser) => {
     if (!sessionUser) return null;
+    
+    // Check cache first to prevent "role jumping" during slow connections
+    const cached = JSON.parse(localStorage.getItem("user"));
+    const defaultRole = (cached && cached.id === sessionUser.id) ? cached.role : 'storekeeper';
+
     try {
       const { data, error } = await fetchWithTimeout(
         supabase.from('profiles').select('*').eq('id', sessionUser.id).maybeSingle(),
-        5000
+        8000
       );
       if (!error && data) return { ...sessionUser, ...data };
     } catch (e) {
-      console.warn("Profile fetch failed or timed out:", e);
+      console.warn("Profile fetch failed or timed out. Using fallback role:", defaultRole);
     }
-    return { ...sessionUser, role: 'storekeeper' };
+    return { ...sessionUser, role: defaultRole };
   };
 
   useEffect(() => {

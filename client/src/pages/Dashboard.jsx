@@ -106,7 +106,6 @@ export default function Dashboard() {
     <div className="page-wrapper" style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <img src="/logo.png" alt="Flywheel Logo" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
           <div>
             <h2 className="section-title">
               {getGreeting()}, <span style={{ color: 'var(--brand-primary)' }}>{userName}</span>
