@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../services/db";
+import { ReportService } from "../services/ReportService";
 import "./Dashboard.css";
 
 export default function JournalEntries() {
@@ -18,12 +19,13 @@ export default function JournalEntries() {
   const filteredSales = sales.filter(s => s.created_at.startsWith(selectedDate));
   const filteredExpenses = expenses.filter(e => e.created_at.startsWith(selectedDate));
   
+  const summary = ReportService.calculateDailySummary(journal, selectedDate);
   const report = {
-    totalsales: filteredSales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0),
-    totalpaid: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
-    totalexpenses: filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0),
+    totalsales: summary.sales,
+    totalpaid: summary.cashIn,
+    totalexpenses: summary.expenses,
+    netcash: summary.net
   };
-  report.netcash = report.totalpaid - report.totalexpenses;
 
   const filteredJournal = journal.filter(j => 
     (j.account_type?.toLowerCase().includes(search.toLowerCase()) || 
