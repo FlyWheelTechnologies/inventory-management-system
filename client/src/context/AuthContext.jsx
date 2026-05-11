@@ -94,7 +94,18 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
-      {!loading && children}
+      {loading ? (
+        <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: '40px', height: '40px', border: '4px solid #f15a24', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
+            <h2 style={{ color: '#1e293b', fontSize: '18px', fontWeight: '600' }}>Starting System...</h2>
+            <p style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>Initializing secure connection</p>
+            <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

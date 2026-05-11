@@ -26,6 +26,8 @@ function App() {
         <Route path="/reports/daily" element={<ProtectedRoute><Layout><JournalEntries /></Layout></ProtectedRoute>} />
         <Route path="/logs" element={<ProtectedRoute><Layout><Logs /></Layout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Layout><AdminSettings /></Layout></ProtectedRoute>} />
+        {/* Fallback for unmatched routes to prevent blank screens */}
+        <Route path="*" element={<Login />} />
       </Routes>
     </BrowserRouter>
   );
