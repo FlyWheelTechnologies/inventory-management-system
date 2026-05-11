@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
+import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
-
-const API_URL = "http://localhost:5000/api";
 
 export default function JournalEntries() {
   const [report, setReport] = useState(null);
@@ -13,12 +12,15 @@ export default function JournalEntries() {
   useEffect(() => { fetchReport(); fetchJournal(); }, []);
 
   const fetchReport = async () => {
-    const res = await fetch(`${API_URL}/reports/daily`);
-    setReport(await res.json());
+    const { data, error } = await supabase.rpc('get_daily_report');
+    if (!error && data && data[0]) {
+      const r = data[0];
+      setReport({ ...r, netCash: r.totalpaid - r.totalexpenses });
+    }
   };
   const fetchJournal = async () => {
-    const res = await fetch(`${API_URL}/journal`);
-    setJournal(await res.json());
+    const { data } = await supabase.from("journal_entries").select("*").order('created_at', { ascending: false });
+    setJournal(data || []);
   };
 
   if (!report) return <div style={{padding:24}}>Loading accounting data...</div>;

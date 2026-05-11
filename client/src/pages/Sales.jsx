@@ -45,9 +45,7 @@ export default function Sales() {
   };
 
   const generateReceipt = async (sale) => {
-    // Fetch items for this sale
-    const res = await fetch(`http://localhost:5000/api/sales/${sale.id}/items`);
-    const saleItems = await res.json();
+    const { data: saleItems } = await supabase.from("sale_items").select("*").eq('sale_id', sale.id);
 
     const doc = new jsPDF({ format: [80, 150] }); // POS width 80mm
     doc.setFontSize(12);

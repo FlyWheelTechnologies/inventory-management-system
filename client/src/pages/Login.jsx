@@ -6,8 +6,8 @@ import "./Auth.css";
 
 export default function Login() {
   const [view, setView] = useState("landing"); // 'landing' or 'login'
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("florzyangel@gmail.com");
+  const [password, setPassword] = useState("Admin123");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();

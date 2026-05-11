@@ -33,8 +33,8 @@ export default function Customers() {
 
   const viewHistory = async (customer) => {
     setSelectedCustomer(customer);
-    const res = await fetch(`http://localhost:5000/api/customers/${customer.id}/sales`);
-    setHistory(await res.json());
+    const { data } = await supabase.from("sales").select("*").eq('customer_id', customer.id).order('created_at', { ascending: false });
+    setHistory(data || []);
   };
 
   const [currentPage, setCurrentPage] = useState(1);
