@@ -77,16 +77,26 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
     if (!error) {
       // 2. Update our public 'profiles' table for RBAC visibility
+      const profileUpdate = { 
+        id: user.id, 
+        full_name: name, 
+        avatar_url: avatar,
+        updated_at: new Date().toISOString()
+      };
+
       await supabase
         .from('profiles')
-        .upsert({ 
-          id: user.id, 
-          full_name: name, 
-          avatar_url: avatar,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(profileUpdate);
 
-      updateUser(data.user);
+      // 3. Manually merge the new data for immediate UI update
+      // supabase.auth.updateUser returns the user object, but we need to ensure 
+      // the top-level properties from the profile table are preserved.
+      updateUser({ 
+        ...data.user, 
+        full_name: name, 
+        avatar_url: avatar 
+      });
+      
       onClose();
     } else {
       alert(error.message);
