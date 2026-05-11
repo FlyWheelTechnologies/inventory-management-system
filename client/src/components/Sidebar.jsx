@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         </div>
         {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-            <span className="sidebar__logo-text">FlorzyAngel</span>
+            <span className="sidebar__logo-text">Flywheel</span>
             <button 
               onClick={() => window.location.reload()} 
               style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#6b7280', transition: 'color 0.2s' }}

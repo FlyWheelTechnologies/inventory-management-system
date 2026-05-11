@@ -54,8 +54,8 @@ Deno.serve(async (req: Request) => {
       <div style="font-family: 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
         
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 32px 28px; text-align: center;">
-          <h1 style="color: #f15a24; margin: 0; font-size: 22px; letter-spacing: -0.5px;">Flywheel IMS</h1>
+        <div style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); padding: 32px 28px; text-align: center;">
+          <h1 style="color: #f97316; margin: 0; font-size: 22px; letter-spacing: -0.5px;">FlorzyAngel Enterprise</h1>
           <p style="color: #94a3b8; margin: 6px 0 0; font-size: 13px;">${isDeposit ? 'Deposit Confirmation' : 'Sale Receipt'}</p>
         </div>
 
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
           <p style="font-size: 15px; color: #374151;">Hi <strong>${customer.full_name}</strong>,</p>
           <p style="font-size: 14px; color: #6b7280;">
             ${isDeposit
-              ? 'Thank you for your advance deposit. We\'ll fulfil your order shortly.'
+              ? 'Thank you for your advance deposit. We\'ll fulfill your order shortly.'
               : 'Thank you for your purchase. Here is your receipt.'}
           </p>
 
@@ -111,7 +111,7 @@ Deno.serve(async (req: Request) => {
         <!-- Footer -->
         <div style="background: #f9fafb; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="font-size: 12px; color: #9ca3af; margin: 0;">Questions? Contact your store admin.</p>
-          <p style="font-size: 11px; color: #d1d5db; margin: 4px 0 0;">Powered by Flywheel IMS</p>
+          <p style="font-size: 11px; color: #d1d5db; margin: 4px 0 0;">Powered by bookflywheel.com</p>
         </div>
       </div>
     `;

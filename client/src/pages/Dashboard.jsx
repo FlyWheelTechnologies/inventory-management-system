@@ -126,9 +126,9 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="greeting-card__content">
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', marginBottom: 4, letterSpacing: 1 }}>FlorzyAngel Enterprise</div>
             <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
-            <h2 className="greeting-title" style={{ fontSize: 16, color: '#6b7280', fontWeight: 500 }}>FlorzyAngel Enterprise</h2>
-            <p className="greeting-sub" style={{ marginTop: 8 }}>
+            <p className="greeting-sub">
               {lowStockCount > 0 
                 ? `You have ${lowStockCount} items running low. ` 
                 : 'All stock levels are healthy. '}

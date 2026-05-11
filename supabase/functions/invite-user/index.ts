@@ -51,15 +51,16 @@ Deno.serve(async (req: Request) => {
       subject: 'Welcome to Flywheel IMS',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
-          <h1 style="color: #f15a24;">Welcome to Flywheel IMS</h1>
+          <h1 style="color: #f97316;">FlorzyAngel Enterprise</h1>
           <p>Hi ${full_name || 'there'},</p>
-          <p>An account has been created for you on the Flywheel Stock Management System.</p>
+          <p>An account has been created for you on the <strong>FlorzyAngel Enterprise</strong> Stock Management System.</p>
           <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0;"><strong>Role:</strong> ${role}</p>
             <p style="margin: 8px 0 0;"><strong>Login Email:</strong> ${email}</p>
           </div>
           <p>You can now log in using your email and the password provided by your administrator.</p>
-          <a href="${Deno.env.get('APP_URL') ?? '#'}" style="display: inline-block; background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In Now</a>
+          <a href="${Deno.env.get('APP_URL') ?? '#'}" style="display: inline-block; background: #374151; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In Now</a>
+          <p style="margin-top: 30px; font-size: 11px; color: #9ca3af; text-align: center;">Powered by bookflywheel.com</p>
         </div>
       `
     })
