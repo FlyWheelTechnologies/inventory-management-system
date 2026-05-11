@@ -24,7 +24,6 @@ out/
 *.db-journal
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
