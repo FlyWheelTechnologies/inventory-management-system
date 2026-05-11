@@ -36,6 +36,14 @@ Deno.serve(async (req: Request) => {
 
     if (profileError) throw profileError
 
+    // 3. Log the action
+    await supabaseClient.from('logs').insert({
+      user_email: 'system/admin',
+      user_role: 'admin',
+      action: 'USER_INVITE',
+      details: `Created new user ${email} with role ${role}`
+    })
+
     return new Response(
       JSON.stringify({ message: 'User created successfully', user: authData.user }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

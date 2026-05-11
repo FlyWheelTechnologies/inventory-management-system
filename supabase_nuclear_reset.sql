@@ -282,9 +282,67 @@ CREATE POLICY "avatar_view"   ON storage.objects FOR SELECT TO public
 -- All webhooks need this header:
 --    Authorization: Bearer <your-service-role-key>
 --
--- Set these Edge Function secrets (Supabase Dashboard → Edge Functions → Secrets):
---    RESEND_API_KEY       = your Resend API key
---    APP_URL              = https://yourapp.github.io or your custom domain
+-- ── 16. AUDIT LOGGING SYSTEM ──────────────────────────────────
+CREATE OR REPLACE FUNCTION public.log_action(
+  p_action TEXT,
+  p_details TEXT
+) RETURNS VOID AS $$
+DECLARE
+  v_user_email TEXT;
+  v_user_role  TEXT;
+BEGIN
+  -- Get user info from profiles if available
+  SELECT email, role INTO v_user_email, v_user_role 
+  FROM public.profiles 
+  WHERE id = auth.uid();
 
--- ── 16. RELOAD SCHEMA CACHE ─────────────────────────────────
+  INSERT INTO public.logs (user_email, user_role, action, details)
+  VALUES (
+    COALESCE(v_user_email, 'system'),
+    COALESCE(v_user_role, 'system'),
+    p_action,
+    p_details
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger for Product Changes
+CREATE OR REPLACE FUNCTION public.trig_log_product_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    PERFORM public.log_action('PRODUCT_CREATE', 'Added ' || NEW.name || ' (Code: ' || NEW.item_code || ')');
+  ELSIF (TG_OP = 'UPDATE') THEN
+    IF (OLD.stock_quantity != NEW.stock_quantity) THEN
+      PERFORM public.log_action('STOCK_ADJUST', 'Product ' || NEW.name || ' stock changed from ' || OLD.stock_quantity || ' to ' || NEW.stock_quantity);
+    ELSE
+      PERFORM public.log_action('PRODUCT_UPDATE', 'Modified ' || NEW.name);
+    END IF;
+  ELSIF (TG_OP = 'DELETE') THEN
+    PERFORM public.log_action('PRODUCT_DELETE', 'Removed ' || OLD.name);
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trig_products_audit
+AFTER INSERT OR UPDATE OR DELETE ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.trig_log_product_change();
+
+-- Trigger for Sales
+CREATE OR REPLACE FUNCTION public.trig_log_sales()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    PERFORM public.log_action('SALE_CREATE', 'New sale/deposit created for ' || NEW.customer_name || '. Total: GHS ' || NEW.total_amount);
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trig_sales_audit
+AFTER INSERT ON public.sales
+FOR EACH ROW EXECUTE FUNCTION public.trig_log_sales();
+
+-- ── 17. RELOAD SCHEMA CACHE ─────────────────────────────────
 NOTIFY pgrst, 'reload schema';
