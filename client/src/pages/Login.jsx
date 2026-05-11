@@ -31,22 +31,35 @@ export default function Login() {
     setLoading(true);
     setErrorMsg("");
 
+    // Fail-safe timeout for login
+    const loginTimer = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setErrorMsg("Login request is taking too long. Please check your internet connection.");
+      }
+    }, 15000);
+
     try {
+      console.log("Attempting login for:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log("Login response received:", { data: !!data, error: error?.message });
+
       if (error) {
         setErrorMsg(error.message);
       } else {
+        console.log("Login successful, navigating...");
         login(data.user, data.session.access_token);
         navigate("/dashboard");
       }
     } catch (err) {
       console.error("Login crash:", err);
-      setErrorMsg("An unexpected error occurred. Please check your connection and try again.");
+      setErrorMsg("An unexpected error occurred: " + (err.message || "Unknown error"));
     } finally {
+      clearTimeout(loginTimer);
       setLoading(false);
     }
   };
