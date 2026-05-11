@@ -192,6 +192,89 @@ export default function Sales() {
     .filter(s => !dateFilter || new Date(s.created_at).toDateString() === new Date(dateFilter).toDateString())
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+  const handleExportCSV = () => {
+    const headers = ["Invoice #", "Date", "Customer", "Total Amount", "Amount Paid", "Balance", "Status", "Method", "Recorded By"];
+    const rows = filtered.map(s => [
+      `INV-${String(s.invoice_no || s.id).padStart(3, '0')}`,
+      new Date(s.created_at).toLocaleDateString(),
+      s.customer_name,
+      s.total_amount,
+      s.amount_paid,
+      s.balance_due,
+      s.payment_status,
+      s.payment_method,
+      s.recorded_by
+    ]);
+    
+    const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `Sales_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      const salesToImport = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row = {};
+        headers.forEach((h, idx) => row[h] = values[idx]);
+        salesToImport.push(row);
+      }
+
+      if (salesToImport.length > 0) {
+        if (!window.confirm(`Found ${salesToImport.length} records. Import them now?`)) return;
+        
+        setSaving(true);
+        try {
+          for (const row of salesToImport) {
+            // Simplified import: creates a sale with one item
+            const prod = products.find(p => p.name.toLowerCase() === row.product?.toLowerCase()) || products[0];
+            if (!prod) continue;
+
+            const payload = {
+              p_customer_name: row.customer || 'Walk-in Customer',
+              p_total_amount: parseFloat(row.price) * parseFloat(row.quantity) || 0,
+              p_amount_paid: parseFloat(row.paid) || 0,
+              p_payment_method: row.method || 'Cash',
+              p_payment_status: 'PAID',
+              p_items: [{
+                product_id: prod.id,
+                product_name: prod.name,
+                quantity: parseFloat(row.quantity) || 1,
+                unit_price: parseFloat(row.price) || prod.selling_price,
+                subtotal: (parseFloat(row.quantity) || 1) * (parseFloat(row.price) || prod.selling_price)
+              }],
+              p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import'
+            };
+
+            await supabase.rpc('record_sale_transaction', payload);
+          }
+          alert("Import completed successfully!");
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          alert("Import failed: " + err.message);
+        } finally {
+          setSaving(false);
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -359,6 +442,13 @@ export default function Sales() {
         <div className="table-card__header">
           <h3 className="table-card__title">Recent Transactions</h3>
           <div className="table-card__actions">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleExportCSV} style={miniInp} title="Export to CSV">📤 Export</button>
+              <label style={{ ...miniInp, cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Import from CSV">
+                📥 Import
+                <input type="file" accept=".csv" onChange={handleImportCSV} style={{ display: 'none' }} />
+              </label>
+            </div>
             <input type="date" style={miniInp} value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
             <select style={miniInp} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="All">All Status</option>

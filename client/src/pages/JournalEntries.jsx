@@ -4,7 +4,8 @@ import "./Dashboard.css";
 
 export default function JournalEntries() {
   const [search, setSearch] = useState("");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const today = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(today);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const printRef = useRef();
