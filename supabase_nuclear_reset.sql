@@ -35,7 +35,8 @@ CREATE TABLE public.profiles (
   id          UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email       TEXT,
   full_name   TEXT,
-  role        TEXT DEFAULT 'storekeeper',
+  role        TEXT DEFAULT 'storekeeper'
+                   CHECK (role IN ('admin', 'storekeeper', 'auditor')),
   avatar_url  TEXT,
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
@@ -168,8 +169,10 @@ CREATE POLICY "journal_insert" ON public.journal_entries FOR INSERT TO authentic
 CREATE TABLE public.logs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_email  TEXT,
+  user_role   TEXT,                    -- role at time of action for audit trail
   action      TEXT,
   details     TEXT,
+  ip_address  TEXT,                    -- populated by Edge Functions if needed
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -249,5 +252,39 @@ CREATE POLICY "avatar_upload" ON storage.objects FOR INSERT TO authenticated
 CREATE POLICY "avatar_view"   ON storage.objects FOR SELECT TO public
   USING (bucket_id = 'avatars');
 
--- ── 14. RELOAD SCHEMA CACHE ─────────────────────────────────
+-- ── 14. BOOTSTRAP: PROMOTE FIRST ADMIN ──────────────────────
+-- After running this script, promote your account to admin:
+-- Replace 'your@email.com' with your actual login email, then run:
+--
+--   UPDATE public.profiles
+--   SET role = 'admin'
+--   WHERE email = 'your@email.com';
+--
+-- To promote another user later (from admin account in app UI):
+-- Use Admin → User & Roles in the sidebar.
+
+-- ── 15. EDGE FUNCTION WEBHOOKS ───────────────────────────────
+-- After deploying Edge Functions (supabase functions deploy),
+-- create these webhooks in: Supabase Dashboard → Database → Webhooks
+--
+-- 1. send-receipt
+--    Table: public.sales | Event: INSERT
+--    URL: https://<project>.supabase.co/functions/v1/send-receipt
+--
+-- 2. send-low-stock-alert
+--    Table: public.products | Event: UPDATE
+--    URL: https://<project>.supabase.co/functions/v1/send-low-stock-alert
+--
+-- 3. notify-deposit
+--    Table: public.sales | Event: INSERT
+--    URL: https://<project>.supabase.co/functions/v1/notify-deposit
+--
+-- All webhooks need this header:
+--    Authorization: Bearer <your-service-role-key>
+--
+-- Set these Edge Function secrets (Supabase Dashboard → Edge Functions → Secrets):
+--    RESEND_API_KEY       = your Resend API key
+--    APP_URL              = https://yourapp.github.io or your custom domain
+
+-- ── 16. RELOAD SCHEMA CACHE ─────────────────────────────────
 NOTIFY pgrst, 'reload schema';
