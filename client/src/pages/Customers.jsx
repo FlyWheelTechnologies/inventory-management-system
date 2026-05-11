@@ -151,17 +151,16 @@ export default function Customers() {
           </div>
           <div className="table-wrapper">
             <table className="stock-table">
-              <thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Orders</th><th>Total Spent</th><th>Action</th></tr></thead>
+              <thead><tr><th>Name</th><th>Phone</th><th>Category</th><th>Last Seen</th><th>Lifetime Spent</th><th>Actions</th></tr></thead>
               <tbody>
                 {paginated.map(c => (
                   <tr key={c.id} style={{ background: selectedCustomer?.id === c.id ? '#eff6ff' : '' }}>
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
                     <td>
                       <div style={{ fontSize: 12 }}>{c.phone}</div>
-                      <div style={{ fontSize: 11, color: '#6b7280' }}>{c.email}</div>
                     </td>
                     <td><span style={{ background: c.is_contractor ? '#dbeafe' : '#f3f4f6', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{c.is_contractor ? 'Contractor' : 'Regular'}</span></td>
-                    <td>{c.transaction_count || 0}</td>
+                    <td style={{ fontSize: 11, color: '#6b7280' }}>{new Date(c.created_at).toLocaleDateString()}</td>
                     <td style={{ fontWeight: 600 }}>GHS {(c.total_spent || 0).toFixed(2)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
@@ -191,6 +190,9 @@ export default function Customers() {
           <div className="table-card" style={{ height: 'fit-content' }}>
             <div className="table-card__header">
               <h3 className="table-card__title">Sales History: {selectedCustomer.name}</h3>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
+                Lifetime Spent: GHS {history.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0).toFixed(2)}
+              </div>
               <button className="close-btn" onClick={() => setSelectedCustomer(null)}>✕</button>
             </div>
             <div className="table-wrapper">

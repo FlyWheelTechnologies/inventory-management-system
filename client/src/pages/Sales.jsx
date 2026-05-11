@@ -72,42 +72,65 @@ export default function Sales() {
     setShowCustomerSuggestions(true);
   };
 
-  // fetchAll not needed since useLiveQuery handles it automatically
-
   const generateReceipt = async (sale) => {
     const { data: saleItems } = await supabase.from('sale_items').select('*').eq('sale_id', sale.id);
 
     const doc = new jsPDF({ format: [80, 150] }); // POS width 80mm
-    doc.setFontSize(12);
-    doc.text('FlorzyAngel ENT.', 40, 10, { align: 'center' });
-    doc.setFontSize(8);
-    doc.text('Management System Receipt', 40, 14, { align: 'center' });
-    doc.text('------------------------------------------', 40, 18, { align: 'center' });
     
-    doc.text(`Receipt #: INV-${String(sale.invoice_no || sale.id).padStart(3, '0')}`, 5, 24);
+    // Header
+    doc.setFontSize(14);
+    doc.setTextColor(55, 65, 81); // Charcoal
+    doc.setFont(undefined, 'bold');
+    doc.text('FlorzyAngel Enterprise', 40, 10, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(249, 115, 22); // Orange
+    doc.text('Inventory Management System', 40, 15, { align: 'center' });
+    
+    doc.setDrawColor(249, 115, 22); // Orange Line
+    doc.line(5, 18, 75, 18);
+    
+    // Transaction Details
+    doc.setFontSize(8);
+    doc.setTextColor(55, 65, 81);
+    doc.setFont(undefined, 'bold');
+    doc.text(`INVOICE: #INV-${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}`, 5, 24);
+    doc.setFont(undefined, 'normal');
     doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 28);
     doc.text(`Customer: ${sale.customer_name}`, 5, 32);
-    doc.text(`Attendant: ${sale.attendant_email}`, 5, 36);
+    doc.text(`Recorded By: ${sale.recorded_by || 'Staff'}`, 5, 36);
     
     autoTable(doc, {
       startY: 40,
       margin: { left: 5, right: 5 },
-      head: [['Item', 'Qty', 'Price', 'Sub']],
-      body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price, i.subtotal]),
-      theme: 'plain',
-      styles: { fontSize: 7, cellPadding: 1 },
-      headStyles: { fontStyle: 'bold' }
+      head: [['ITEM', 'QTY', 'PRICE', 'TOTAL']],
+      body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price.toFixed(2), i.subtotal.toFixed(2)]),
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [55, 65, 81], textColor: 255, fontStyle: 'bold' }, // Charcoal Header
+      columnStyles: { 3: { halign: 'right' } }
     });
 
-    const finalY = doc.lastAutoTable.finalY + 5;
-    doc.text(`TOTAL: GHS ${parseFloat(sale.total_amount).toFixed(2)}`, 45, finalY);
-    doc.text(`PAID: GHS ${parseFloat(sale.amount_paid).toFixed(2)}`, 45, finalY + 4);
-    doc.text(`BAL: GHS ${parseFloat(sale.balance_due).toFixed(2)}`, 45, finalY + 8);
+    const finalY = doc.lastAutoTable.finalY + 6;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text(`GRAND TOTAL:`, 35, finalY);
+    doc.text(`GHS ${parseFloat(sale.total_amount).toFixed(2)}`, 75, finalY, { align: 'right' });
     
-    doc.text('------------------------------------------', 40, finalY + 14, { align: 'center' });
-    doc.text('Thank you for your business!', 40, finalY + 18, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Amount Paid:`, 35, finalY + 5);
+    doc.text(`GHS ${parseFloat(sale.amount_paid).toFixed(2)}`, 75, finalY + 5, { align: 'right' });
     
-    doc.save(`Receipt_${sale.id}.pdf`);
+    doc.text(`Balance Due:`, 35, finalY + 9);
+    doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
+    doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(2)}`, 75, finalY + 9, { align: 'right' });
+    
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(7);
+    doc.text('Powered by bookflywheel.com', 40, finalY + 18, { align: 'center' });
+    
+    doc.save(`Receipt_INV_${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}.pdf`);
   };
 
   const total = items.reduce((a, i) => a + (i.quantity * i.unit_price), 0);
@@ -126,7 +149,6 @@ export default function Sales() {
       const isNewCustomer = customerName && customerName !== 'Walk-in Customer' && !customerId;
       
       if (isNewCustomer) {
-        // Create customer directly in Supabase
         const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
           name: customerName,
           phone: '',
@@ -140,7 +162,7 @@ export default function Sales() {
       }
 
       const validItems = items.filter(i => i.product_id).map(i => {
-        const prod = products.find(p => p.id === parseInt(i.product_id) || p.id === i.product_id); // Handle UUID or Int
+        const prod = products.find(p => p.id === parseInt(i.product_id) || p.id === i.product_id);
         return {
           product_id: prod.id,
           product_name: i.product_name,
@@ -153,7 +175,6 @@ export default function Sales() {
       const payloadAmountPaid = parseFloat(amountPaid) || 0;
       const status = isDeposit ? 'DEPOSIT' : (balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'UNPAID');
 
-      // Call Supabase RPC directly
       const { error: rpcError } = await supabase.rpc('record_sale_transaction', {
         p_customer_id: resolvedCustomerId,
         p_customer_name: customerName,
@@ -173,7 +194,7 @@ export default function Sales() {
       setAmountPaid(''); setPaymentMethod('Cash'); setNotes('');
       setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch('');
       setIsDeposit(false);
-      fetchData(); // Refresh UI
+      fetchData();
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to record sale');
@@ -240,7 +261,6 @@ export default function Sales() {
         setSaving(true);
         try {
           for (const row of salesToImport) {
-            // Simplified import: creates a sale with one item
             const prod = products.find(p => p.name.toLowerCase() === row.product?.toLowerCase()) || products[0];
             if (!prod) continue;
 

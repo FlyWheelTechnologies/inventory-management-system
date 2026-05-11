@@ -207,18 +207,42 @@ export default function Products() {
       <div className="table-card">
         <div className="table-card__header">
           <h3 className="table-card__title">Current Stock</h3>
-          <div className="table-card__actions">
-            <select style={miniInp} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-              <option value="All">All Categories</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select style={miniInp} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="name">Sort by Name</option>
-              <option value="stock_low">Low Stock First</option>
-              <option value="stock_high">High Stock First</option>
-              <option value="price_high">Price: High to Low</option>
-            </select>
-            <input type="search" className="table-search" placeholder="Search..." value={search} onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} />
+          <div className="table-card__actions" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ position: 'relative' }}>
+              <select style={{ ...miniInp, paddingLeft: 30 }} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                <option value="All">All Categories</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}>
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+            </div>
+            
+            <div style={{ position: 'relative' }}>
+              <select style={{ ...miniInp, paddingLeft: 30 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                <option value="name">Sort by Name</option>
+                <option value="stock_low">Low Stock First</option>
+                <option value="stock_high">High Stock First</option>
+                <option value="price_high">Price: High to Low</option>
+              </select>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}>
+                <path d="M15 18H3M21 12H3M21 6H3"/>
+              </svg>
+            </div>
+
+            <div style={{ position: 'relative' }}>
+              <input 
+                type="search" 
+                className="table-search" 
+                placeholder="Search..." 
+                value={search} 
+                onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} 
+                style={{ paddingLeft: 34, height: 32 }}
+              />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </div>
           </div>
         </div>
         <div className="table-wrapper">
@@ -242,10 +266,26 @@ export default function Products() {
                   <td><span className={`status-pill status-pill--${p.stock_quantity < (p.low_stock_threshold || 10) ? 'low' : 'ok'}`}>{p.stock_quantity < (p.low_stock_threshold || 10) ? 'Low' : 'OK'}</span></td>
                   {!isAuditor && (
                     <td>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => startEdit(p)} style={actionBtn} title="Edit Product">✏️</button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button 
+                          onClick={() => startEdit(p)} 
+                          style={{ ...actionBtn, color: '#6b7280' }} 
+                          onMouseEnter={e => e.currentTarget.style.color = '#f97316'}
+                          onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
+                          title="Edit Product"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
                         {user?.role === 'admin' && (
-                          <button onClick={() => confirmDelete(p)} style={{ ...actionBtn, color: '#ef4444' }} title="Delete Product">🗑️</button>
+                          <button 
+                            onClick={() => confirmDelete(p)} 
+                            style={{ ...actionBtn, color: '#6b7280' }} 
+                            onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
+                            title="Delete Product"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -280,7 +320,7 @@ export default function Products() {
       </div>
 
       <ConfirmationModal
-        isOpen={showConfirm}
+        show={showConfirm}
         title="Delete Product"
         message={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
         onConfirm={handleDelete}

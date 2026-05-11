@@ -125,8 +125,8 @@ export default function Dashboard() {
     <div className="page-wrapper" style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div>
-            <h1 className="greeting">Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
+          <div className="greeting-card__content">
+            <h1 className="greeting-title">FlorzyAngel Enterprise</h1>
             <p className="greeting-sub">
               {lowStockCount > 0 
                 ? `You have ${lowStockCount} items running low. ` 
