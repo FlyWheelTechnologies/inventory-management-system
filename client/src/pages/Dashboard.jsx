@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabaseClient";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
 import { useAuth } from "../context/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
@@ -31,41 +32,17 @@ function StatCard({ icon, label, value, trend, accent, children }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [logs, setLogs] = useState([]);
+  const products = useLiveQuery(() => db.products.toArray(), []) || [];
+  const sales = useLiveQuery(() => db.sales.toArray(), []) || [];
+  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
+  const logs = useLiveQuery(() => db.logs.toArray(), []) || [];
   const [showAudit, setShowAudit] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const [report, setReport] = useState(null);
-
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    fetchData();
     return () => clearInterval(timer);
   }, []);
-
-  const fetchData = async () => {
-    try {
-      const { data: pData } = await supabase.from("products").select("*");
-      const { data: sData } = await supabase.from("sales").select("*");
-      const { data: eData } = await supabase.from("expenses").select("*");
-      const { data: lData } = await supabase.from("logs").select("*");
-      
-      const { data: reportData, error: reportError } = await supabase.rpc('get_daily_report');
-      if (!reportError && reportData && reportData[0]) {
-        setReport(reportData[0]);
-      }
-
-      setProducts(pData || []);
-      setSales(sData || []);
-      setExpenses(eData || []);
-      setLogs(lData || []);
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
-    }
-  };
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -101,8 +78,10 @@ export default function Dashboard() {
     return "Good Evening";
   };
 
-  const todayCashIn = report ? parseFloat(report.totalpaid || 0) : 0;
-  const todayRevenue = report ? parseFloat(report.totalsales || 0) : 0;
+  const todayDate = new Date().toDateString();
+  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+  const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
+  const todayRevenue = todaySales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
   const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * parseFloat(p.stock_quantity || 0)), 0);
   const lowStockCount = products.filter(p => p.stock_quantity < 10).length;
 

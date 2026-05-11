@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
-
-const API_URL = "http://localhost:5000/api";
 
 export default function AdminSettings() {
   const { user: currentUser } = useAuth();
@@ -21,56 +20,58 @@ export default function AdminSettings() {
   }, [currentUser]);
 
   const fetchUsers = async () => {
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch(`${API_URL}/users`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      setUsers(await res.json());
+    const { data, error } = await supabase.from('profiles').select('*');
+    if (!error && data) {
+      setUsers(data);
+    } else {
+      console.error("Error fetching users:", error);
     }
   };
 
   const deleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
     
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch(`${API_URL}/users/${userId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    // Note: To fully delete a user from auth.users requires the Supabase Admin API.
+    // Here we delete from the profiles table, which might not be enough to remove auth, 
+    // but works for demonstration if auth.users doesn't CASCADE. 
+    // Ideally this is handled via an edge function.
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
 
-    if (res.ok) {
+    if (!error) {
       fetchUsers();
     } else {
-      const data = await res.json();
-      setError(data.error);
+      setError(error.message);
     }
   };
 
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const token = localStorage.getItem("auth_token");
-    const url = editUserId ? `${API_URL}/users/${editUserId}` : `${API_URL}/users`;
-    const method = editUserId ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(newUser),
-    });
+    let error;
 
-    if (res.ok) {
+    if (editUserId) {
+      // Update existing profile
+      const { error: updateError } = await supabase.from('profiles').update({
+        full_name: newUser.full_name,
+        role: newUser.role
+      }).eq('id', editUserId);
+      error = updateError;
+    } else {
+      // Create new user (Simulated here. In production use Supabase Admin API or send a magic link)
+      // We will try to use signIn/signUp, but since this is an admin panel, edge functions are best.
+      // For now, we'll show an error if they try to create a user this way because client-side signUp 
+      // automatically logs the admin out.
+      error = { message: "To add a new user safely, use the Supabase Dashboard, or implement an Edge Function to avoid logging out the current admin." };
+    }
+
+    if (!error) {
       setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
       setShowAddUser(false);
       setEditUserId(null);
       fetchUsers();
     } else {
-      const data = await res.json();
-      setError(data.error);
+      setError(error.message);
     }
   };
 

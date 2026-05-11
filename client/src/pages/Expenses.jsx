@@ -1,27 +1,27 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
+import { SyncService } from "../services/SyncService";
+import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 
 const CATEGORIES = ['Utilities', 'Transport', 'Salary', 'Maintenance', 'Supplies', 'Misc'];
 
 export default function Expenses() {
-  const [expenses, setExpenses] = useState([]);
+  const { user } = useAuth();
+  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ description:'', category:'Misc', amount:'' });
 
-  useEffect(() => { fetchExpenses(); }, []);
-
-  const fetchExpenses = async () => {
-    const { data } = await supabase.from("expenses").select("*");
-    setExpenses(data || []);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await supabase.from("expenses").insert([form]);
+    const payload = {
+      ...form,
+      recorded_by: user?.email || 'System',
+      created_at: new Date().toISOString()
+    };
+    await SyncService.queueMutation("expenses", "INSERT", payload);
     setForm({ description:'', category:'Misc', amount:'' });
     setShowForm(false);
-    fetchExpenses();
   };
 
   const [search, setSearch] = useState('');

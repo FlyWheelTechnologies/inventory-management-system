@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
+import { SyncService } from "../services/SyncService";
 
 const AuthContext = createContext();
 
@@ -33,6 +34,9 @@ export function AuthProvider({ children }) {
         const fullUser = await fetchProfile(session.user);
         setUser(fullUser);
         localStorage.setItem("user", JSON.stringify(fullUser));
+        if (navigator.onLine) {
+          SyncService.syncAllTables();
+        }
       } else {
         setUser(null);
         localStorage.removeItem("user");
@@ -48,6 +52,9 @@ export function AuthProvider({ children }) {
         const fullUser = await fetchProfile(session.user);
         setUser(fullUser);
         localStorage.setItem("user", JSON.stringify(fullUser));
+        if (navigator.onLine) {
+          SyncService.syncAllTables();
+        }
       } else {
         setUser(null);
         localStorage.removeItem("user");

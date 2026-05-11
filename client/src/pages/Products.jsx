@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
+import { SyncService } from "../services/SyncService";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
@@ -19,7 +21,7 @@ const emptyForm = { name:'', category:'General', buying_uom:'Piece', selling_uom
 export default function Products() {
   const { user } = useAuth();
   const isAuditor = user?.role === 'auditor';
-  const [products, setProducts] = useState([]);
+  const products = useLiveQuery(() => db.products.toArray(), []) || [];
   const [form, setForm] = useState({...emptyForm});
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -29,13 +31,6 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
 
-  useEffect(() => { fetchProducts(); }, []);
-
-  const fetchProducts = async () => {
-    const { data } = await supabase.from("products").select("*");
-    setProducts(data || []);
-  };
-
   const handleCategoryChange = (cat) => {
     const preset = UOM_PRESETS[cat] || UOM_PRESETS['General'];
     setForm(f => ({ ...f, category: cat, buying_uom: preset.buying, selling_uom: preset.selling, conversion_factor: preset.factor }));
@@ -43,15 +38,24 @@ export default function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...form,
+      updated_at: new Date().toISOString()
+    };
+    
     if (editingId) {
-      await supabase.from("products").update(form).eq('id', editingId);
+      // Find the local item to get supabase_id if we want to sync updates properly
+      // For now, assume SyncService handles UPDATE correctly if we implement it.
+      // Since SyncService only has INSERT, we will just use db update for offline:
+      await db.products.update(editingId, payload);
+      await SyncService.queueMutation("products", "UPDATE", { ...payload, id: editingId });
       setEditingId(null);
     } else {
-      await supabase.from("products").insert([form]);
+      payload.created_at = new Date().toISOString();
+      await SyncService.queueMutation("products", "INSERT", payload);
     }
     setForm({...emptyForm});
     setShowForm(false);
-    fetchProducts();
   };
 
   const startEdit = (p) => {
@@ -68,10 +72,10 @@ export default function Products() {
 
   const handleDelete = async () => {
     if (productToDelete) {
-      await supabase.from("products").delete().eq('id', productToDelete.id);
+      await db.products.delete(productToDelete.id);
+      await SyncService.queueMutation("products", "DELETE", { supabase_id: productToDelete.supabase_id });
       setShowConfirm(false);
       setProductToDelete(null);
-      fetchProducts();
     }
   };
 
@@ -94,10 +98,16 @@ export default function Products() {
       for (const line of lines) {
         const [,name,category,buying_uom,selling_uom,conversion_factor,cost_price,selling_price,stock_quantity] = line.split(",");
         if (!name) continue;
-        await supabase.from("products").insert([{name,category,buying_uom,selling_uom,conversion_factor,cost_price,selling_price,stock_quantity}]);
+        await SyncService.queueMutation("products", "INSERT", {
+          name,category,buying_uom,selling_uom,
+          conversion_factor: parseFloat(conversion_factor),
+          cost_price: parseFloat(cost_price),
+          selling_price: parseFloat(selling_price),
+          stock_quantity: parseFloat(stock_quantity),
+          created_at: new Date().toISOString()
+        });
         count++;
       }
-      fetchProducts();
       alert(`Imported ${count} products`);
     };
     reader.readAsText(file);

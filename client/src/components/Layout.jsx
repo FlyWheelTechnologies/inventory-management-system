@@ -3,6 +3,8 @@ import Sidebar from "./Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import OfflineBanner from "./OfflineBanner";
+import { SyncService } from "../services/SyncService";
 import "../pages/Dashboard.css";
 
 const AVATAR_PRESETS = [
@@ -130,8 +132,15 @@ export default function Layout({ children }) {
   }, []);
 
   const handleLogout = async () => {
+    const queueCount = await SyncService.getQueueCount();
+    if (queueCount > 0) {
+      alert(`Cannot logout: You have ${queueCount} pending offline changes. Please connect to the internet to sync your data before logging out to prevent data loss.`);
+      return;
+    }
+    
     await supabase.auth.signOut();
-    navigate("/");
+    // Clear Dexie database for next user to prevent data mixing
+    await import('../services/db').then(m => m.db.delete()).then(() => window.location.reload());
   };
 
   return (
@@ -184,6 +193,7 @@ export default function Layout({ children }) {
             </div>
           </div>
         </header>
+        <OfflineBanner />
         <div className="page-content" style={{ overflowY: 'auto', display: 'block' }}>
           {children}
         </div>

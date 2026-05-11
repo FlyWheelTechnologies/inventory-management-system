@@ -1,32 +1,23 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
 import "./Dashboard.css";
 
 export default function JournalEntries() {
-  const [report, setReport] = useState(null);
-  const [journal, setJournal] = useState([]);
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
-
-  useEffect(() => { fetchReport(); fetchJournal(); }, []);
-
-  const fetchReport = async () => {
-    const { data, error } = await supabase.rpc('get_daily_report');
-    if (!error && data && data[0]) {
-      const r = data[0];
-      setReport({ 
-        totalsales: parseFloat(r.totalsales || 0),
-        totalpaid: parseFloat(r.totalpaid || 0),
-        totalexpenses: parseFloat(r.totalexpenses || 0),
-        netcash: parseFloat(r.totalpaid || 0) - parseFloat(r.totalexpenses || 0)
-      });
-    }
+  const journal = useLiveQuery(() => db.journal_entries.reverse().sortBy('created_at'), []) || [];
+  const sales = useLiveQuery(() => db.sales.toArray(), []) || [];
+  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
+  
+  const todayDate = new Date().toDateString();
+  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+  const todayExpenses = expenses.filter(s => new Date(s.created_at).toDateString() === todayDate);
+  
+  const report = {
+    totalsales: todaySales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0),
+    totalpaid: todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
+    totalexpenses: todayExpenses.reduce((a, s) => a + parseFloat(s.amount || 0), 0),
   };
-  const fetchJournal = async () => {
-    const { data } = await supabase.from("journal_entries").select("*").order('created_at', { ascending: false });
-    setJournal(data || []);
-  };
+  report.netcash = report.totalpaid - report.totalexpenses;
 
   if (!report) return <div style={{padding:24}}>Loading accounting data...</div>;
 

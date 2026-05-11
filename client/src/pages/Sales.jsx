@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
+import { SyncService } from "../services/SyncService";
 import ConfirmationModal from "../components/ConfirmationModal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -17,9 +19,9 @@ const InfoTip = ({ text }) => (
 );
 
 export default function Sales() {
-  const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const sales = useLiveQuery(() => db.sales.reverse().sortBy('created_at'), []) || [];
+  const products = useLiveQuery(() => db.products.toArray(), []) || [];
+  const customers = useLiveQuery(() => db.customers.toArray(), []) || [];
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -33,19 +35,10 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
 
-  useEffect(() => { fetchAll(); }, []);
-
-  const fetchAll = async () => {
-    const { data: s } = await supabase.from("sales").select("*");
-    const { data: p } = await supabase.from("products").select("*");
-    const { data: c } = await supabase.from("customers").select("*");
-    setSales(s || []);
-    setProducts(p || []);
-    setCustomers(c || []);
-  };
+  // fetchAll not needed since useLiveQuery handles it automatically
 
   const generateReceipt = async (sale) => {
-    const { data: saleItems } = await supabase.from("sale_items").select("*").eq('sale_id', sale.id);
+    const saleItems = await db.sale_items.where('sale_id').equals(sale.id).toArray();
 
     const doc = new jsPDF({ format: [80, 150] }); // POS width 80mm
     doc.setFontSize(12);
@@ -87,29 +80,85 @@ export default function Sales() {
     if (items.length === 0 || !items[0].product_id) return setError('Please add at least one product.');
     
     setError('');
-    const token = localStorage.getItem("auth_token");
     const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
 
     try {
-      const { data: saleId, error } = await supabase.rpc('record_sale_transaction', {
-        p_customer_name: customerName,
-        p_amount_paid: parseFloat(amountPaid) || 0,
-        p_payment_method: paymentMethod,
-        p_items: items.filter(i => i.product_id).map(i => ({
-          product_id: i.product_id,
-          quantity: parseFloat(i.quantity),
-          unit_price: parseFloat(i.unit_price)
-        }))
+      const validItems = items.filter(i => i.product_id).map(i => ({
+        product_id: parseInt(i.product_id),
+        product_name: i.product_name,
+        quantity: parseFloat(i.quantity),
+        unit_price: parseFloat(i.unit_price),
+        subtotal: parseFloat(i.quantity) * parseFloat(i.unit_price)
+      }));
+
+      const payloadAmountPaid = parseFloat(amountPaid) || 0;
+      const status = balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'CREDIT';
+      const created_at = new Date().toISOString();
+      const supabase_id = crypto.randomUUID();
+
+      // Offline updates to Dexie
+      await db.transaction('rw', db.sales, db.sale_items, db.products, db.journal_entries, async () => {
+        const saleId = await db.sales.add({
+          customer_id: customerId ? parseInt(customerId) : null,
+          customer_name: customerName,
+          attendant_email: userEmail,
+          total_amount: total,
+          amount_paid: payloadAmountPaid,
+          balance_due: balance,
+          payment_status: status,
+          payment_method: paymentMethod,
+          notes: notes,
+          created_at,
+          supabase_id,
+          sync_status: 'synced' // We will queue the RPC instead, so local records don't need independent sync
+        });
+
+        for (const item of validItems) {
+          await db.sale_items.add({
+            sale_id: saleId,
+            ...item,
+            supabase_id: crypto.randomUUID(),
+            sync_status: 'synced'
+          });
+          const product = await db.products.get(item.product_id);
+          if (product) {
+            await db.products.update(product.id, { stock_quantity: product.stock_quantity - item.quantity });
+          }
+        }
+        
+        // Journal entries
+        if (payloadAmountPaid > 0) {
+          await db.journal_entries.add({ sale_id: saleId, account_type: paymentMethod.toUpperCase(), debit: payloadAmountPaid, credit: 0, description: `${paymentMethod} received`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
+        }
+        if (balance > 0) {
+          await db.journal_entries.add({ sale_id: saleId, account_type: 'ACCOUNTS_RECEIVABLE', debit: balance, credit: 0, description: `Credit given`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
+        }
+        await db.journal_entries.add({ sale_id: saleId, account_type: 'REVENUE', debit: 0, credit: total, description: `Revenue`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
       });
 
-      if (error) throw error;
+      // Queue RPC for Supabase
+      await db.sync_queue.add({
+        table: 'record_sale_transaction', // used as RPC name
+        operation: 'RPC',
+        payload: {
+          p_customer_name: customerName,
+          p_amount_paid: payloadAmountPaid,
+          p_payment_method: paymentMethod,
+          p_items: validItems.map(i => ({
+            product_id: i.product_id,
+            quantity: i.quantity,
+            unit_price: i.unit_price
+          }))
+        },
+        created_at
+      });
+      if (navigator.onLine) SyncService.syncQueueToSupabase();
 
       playSound('success');
       setShowForm(false);
       setShowConfirm(false);
       setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
       setAmountPaid(''); setPaymentMethod('Cash'); setNotes(''); setCustomerId(''); setCustomerName('Walk-in Customer');
-      fetchAll();
     } catch (err) {
       playSound('error');
       setError(err.message || 'Failed to record sale');

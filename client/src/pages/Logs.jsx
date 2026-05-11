@@ -1,21 +1,10 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
 import "./Dashboard.css";
 
 export default function Logs() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
-    setLoading(true);
-    const { data } = await supabase.from("logs").select("*");
-    setLogs(data || []);
-    setLoading(false);
-  };
+  const logs = useLiveQuery(() => db.logs.reverse().sortBy('created_at'), []) || [];
+  const loading = false;
 
   const getActionColor = (action) => {
     if (action.includes('SALE')) return '#22c55e';
@@ -28,7 +17,6 @@ export default function Logs() {
     <div className="page-wrapper" style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h2 className="section-title">System Audit Logs</h2>
-        <button className="quick-action-btn" onClick={fetchLogs}>Refresh Logs</button>
       </div>
 
       <div className="table-card">

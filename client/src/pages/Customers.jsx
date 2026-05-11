@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../services/supabaseClient";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../services/db";
+import { SyncService } from "../services/SyncService";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
 
 const emptyForm = { name: '', phone: '', email: '', address: '', is_contractor: false };
 
 export default function Customers() {
-  const [customers, setCustomers] = useState([]);
+  const customers = useLiveQuery(() => db.customers.toArray(), []) || [];
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [search, setSearch] = useState('');
@@ -14,26 +16,21 @@ export default function Customers() {
   const [history, setHistory] = useState([]);
   const [sortBy, setSortBy] = useState('name');
 
-  useEffect(() => { fetchCustomers(); }, []);
-
-  const fetchCustomers = async () => {
-    const { data } = await supabase.from("customers").select("*");
-    setCustomers(data || []);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from("customers").insert([form]);
-    if (!error) {
-      setForm({ ...emptyForm });
-      setShowForm(false);
-      fetchCustomers();
-    }
+    const payload = {
+      ...form,
+      created_at: new Date().toISOString()
+    };
+    await SyncService.queueMutation("customers", "INSERT", payload);
+    setForm({ ...emptyForm });
+    setShowForm(false);
   };
 
   const viewHistory = async (customer) => {
     setSelectedCustomer(customer);
-    const { data } = await supabase.from("sales").select("*").eq('customer_id', customer.id).order('created_at', { ascending: false });
+    // Offline queries use dexie
+    const data = await db.sales.where('customer_id').equals(customer.id).reverse().sortBy('created_at');
     setHistory(data || []);
   };
 
