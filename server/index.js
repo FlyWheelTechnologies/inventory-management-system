@@ -430,19 +430,39 @@ app.get('/api/logs', async (req, res) => {
 });
 
 // ── Users (Admin) ───────────────────────────────────
-app.get('/api/users', async (req, res) => {
-  const rows = await dbAll('SELECT id, email, role FROM users ORDER BY id');
+app.get('/api/users', requireRole('admin'), async (req, res) => {
+  const rows = await dbAll('SELECT id, email, role, full_name, avatar_url FROM users ORDER BY id');
   res.json(rows);
 });
 
-app.put('/api/users/:id/role', async (req, res) => {
+app.post('/api/users', requireRole('admin'), async (req, res) => {
+  const { email, password, role, full_name } = req.body;
+  const hash = await bcrypt.hash(password, 10);
+  db.run('INSERT INTO users (email, password, role, full_name) VALUES (?, ?, ?, ?)', [email, hash, role || 'storekeeper', full_name || ''], function(err) {
+    if (err) return res.status(400).json({ error: 'Email already exists' });
+    logAction(req.user.email, 'USER_CREATE', `Created new user: ${email} with role ${role}`);
+    res.json({ success: true, id: this.lastID });
+  });
+});
+
+app.put('/api/users/:id/role', requireRole('admin'), async (req, res) => {
   const { role } = req.body;
+  const targetId = parseInt(req.params.id);
+  const currentUserId = req.user.id;
+
+  if (targetId === currentUserId) {
+    return res.status(400).json({ error: 'You cannot change your own role to prevent accidental lockout.' });
+  }
+
   if (!['admin', 'storekeeper', 'auditor'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
-  await dbRun('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
-  logAction('Admin', 'ROLE_CHANGE', `User #${req.params.id} → ${role}`);
-  res.json({ success: true });
+  
+  db.run('UPDATE users SET role = ? WHERE id = ?', [role, targetId], function(err) {
+    if (err) return res.status(400).json({ error: err.message });
+    logAction(req.user.email, 'ROLE_CHANGE', `Changed user #${targetId} role to ${role}`);
+    res.json({ success: true });
+  });
 });
 
 app.listen(PORT, () => {

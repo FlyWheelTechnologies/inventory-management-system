@@ -5,6 +5,15 @@ import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import "../pages/Dashboard.css";
 
+const AVATAR_PRESETS = [
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Anya",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Jack",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Lily",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Milo",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie"
+];
+
 export default function Layout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -66,17 +75,34 @@ export default function Layout({ children }) {
               />
             </div>
             <div className="form-group">
-              <label>Profile Picture URL</label>
-              <input 
-                type="text" 
-                value={avatar} 
-                onChange={(e) => setAvatar(e.target.value)} 
-                placeholder="https://example.com/photo.jpg"
-              />
+              <label>Select Profile Picture</label>
+              <div className="avatar-presets">
+                {AVATAR_PRESETS.map((url, i) => (
+                  <div 
+                    key={i} 
+                    className={`preset-item ${avatar === url ? 'preset-item--active' : ''}`}
+                    onClick={() => setAvatar(url)}
+                  >
+                    <img src={url} alt={`Preset ${i}`} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: '12px' }}>
+                <label style={{ fontSize: '11px', color: '#6b7280' }}>Or paste custom image URL</label>
+                <input 
+                  type="text" 
+                  value={avatar} 
+                  onChange={(e) => setAvatar(e.target.value)} 
+                  placeholder="https://example.com/photo.jpg"
+                />
+              </div>
             </div>
             {avatar && (
-              <div className="avatar-preview">
-                <img src={avatar} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
+              <div className="avatar-preview-container">
+                <div className="avatar-preview">
+                  <img src={avatar} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
+                </div>
+                <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>Preview</span>
               </div>
             )}
             <div className="modal-actions">
@@ -273,7 +299,32 @@ export default function Layout({ children }) {
         .form-group input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
         .form-group input:focus { border-color: #2563eb; ring: 2px solid #dbeafe; }
         
-        .avatar-preview { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto 16px; border: 2px solid #e5e7eb; }
+        .avatar-presets {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .preset-item {
+          aspect-ratio: 1;
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          border: 2px solid transparent;
+          transition: all 0.2s;
+          background: #f9fafb;
+        }
+        .preset-item:hover { transform: scale(1.05); border-color: #e5e7eb; }
+        .preset-item--active { border-color: #2563eb; background: #eff6ff; }
+        .preset-item img { width: 100%; height: 100%; object-fit: cover; }
+
+        .avatar-preview-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+        .avatar-preview { width: 70px; height: 70px; border-radius: 50%; overflow: hidden; margin-bottom: 4px; border: 2px solid #e5e7eb; background: white; }
         .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
         
         .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
