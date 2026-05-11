@@ -87,7 +87,7 @@ CREATE POLICY "products_delete" ON public.products FOR DELETE TO authenticated U
 -- ── 5. CUSTOMERS TABLE ──────────────────────────────────────
 CREATE TABLE public.customers (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  full_name     TEXT NOT NULL,
+  name          TEXT NOT NULL,
   phone         TEXT,
   email         TEXT,
   address       TEXT,
@@ -186,7 +186,7 @@ CREATE VIEW public.debtors
 WITH (security_invoker = true) AS
 SELECT
   c.id            AS customer_id,
-  c.full_name     AS customer_name,
+  c.name          AS customer_name,
   c.phone,
   SUM(s.amount_paid)                                            AS total_debt,  -- amount held as deposit
   MAX(s.created_at)                                             AS last_sale_date,
@@ -194,7 +194,7 @@ SELECT
 FROM public.sales s
 JOIN public.customers c ON s.customer_id = c.id
 WHERE s.payment_status = 'DEPOSIT'
-GROUP BY c.id, c.full_name, c.phone;
+GROUP BY c.id, c.name, c.phone;
 
 GRANT SELECT ON public.debtors TO authenticated;
 

@@ -69,7 +69,7 @@ export default function Sales() {
     doc.text('Management System Receipt', 40, 14, { align: 'center' });
     doc.text('------------------------------------------', 40, 18, { align: 'center' });
     
-    doc.text(`Receipt #: ${sale.id}`, 5, 24);
+    doc.text(`Receipt #: ${sale.id.slice(0, 8).toUpperCase()}`, 5, 24);
     doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 28);
     doc.text(`Customer: ${sale.customer_name}`, 5, 32);
     doc.text(`Attendant: ${sale.attendant_email}`, 5, 36);
@@ -122,13 +122,17 @@ export default function Sales() {
         await SyncService.queueMutation('customers', 'INSERT', { name: customerName, phone: '', email: '', is_contractor: false, created_at: new Date().toISOString() });
       }
 
-      const validItems = items.filter(i => i.product_id).map(i => ({
-        product_id: parseInt(i.product_id),
-        product_name: i.product_name,
-        quantity: parseFloat(i.quantity),
-        unit_price: parseFloat(i.unit_price),
-        subtotal: parseFloat(i.quantity) * parseFloat(i.unit_price)
-      }));
+      const validItems = items.filter(i => i.product_id).map(i => {
+        const prod = products.find(p => p.id === parseInt(i.product_id));
+        return {
+          product_id: parseInt(i.product_id),
+          supabase_product_id: prod?.supabase_id,
+          product_name: i.product_name,
+          quantity: parseFloat(i.quantity),
+          unit_price: parseFloat(i.unit_price),
+          subtotal: parseFloat(i.quantity) * parseFloat(i.unit_price)
+        };
+      });
 
       const payloadAmountPaid = parseFloat(amountPaid) || 0;
       // Deposit: customer pays in advance — status is DEPOSIT regardless of balance
@@ -192,14 +196,20 @@ export default function Sales() {
         table: 'record_sale_transaction', // used as RPC name
         operation: 'RPC',
         payload: {
+          p_customer_id: resolvedCustomerId,
           p_customer_name: customerName,
+          p_total_amount: total,
           p_amount_paid: payloadAmountPaid,
           p_payment_method: paymentMethod,
+          p_payment_status: status,
           p_items: validItems.map(i => ({
-            product_id: i.product_id,
+            product_id: i.supabase_product_id,
+            product_name: i.product_name,
             quantity: i.quantity,
-            unit_price: i.unit_price
-          }))
+            unit_price: i.unit_price,
+            subtotal: i.subtotal
+          })),
+          p_recorded_by: userEmail
         },
         created_at
       });
