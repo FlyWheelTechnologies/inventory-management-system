@@ -11,6 +11,7 @@ export default function AdminSettings() {
   const [error, setError] = useState('');
 
   const [editUserId, setEditUserId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -47,42 +48,51 @@ export default function AdminSettings() {
 
   const handleUserSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     setError('');
 
-    let error;
+    let submitError;
 
-    if (editUserId) {
-      // Update existing profile
-      const { error: updateError } = await supabase.from('profiles').update({
-        full_name: newUser.full_name,
-        role: newUser.role
-      }).eq('id', editUserId);
-      error = updateError;
-    } else {
-      // Create new user via Edge Function (Prevents Admin logout)
-      const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
-        body: {
-          email: newUser.email,
-          password: newUser.password,
-          role: newUser.role,
-          full_name: newUser.full_name
+    try {
+      if (editUserId) {
+        // Update existing profile
+        const { error: updateError } = await supabase.from('profiles').update({
+          full_name: newUser.full_name,
+          role: newUser.role
+        }).eq('id', editUserId);
+        submitError = updateError;
+      } else {
+        // Create new user via Edge Function (Prevents Admin logout)
+        const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
+          body: {
+            email: newUser.email,
+            password: newUser.password,
+            role: newUser.role,
+            full_name: newUser.full_name
+          }
+        });
+        
+        if (functionError) {
+          submitError = functionError;
+        } else if (data?.error) {
+          submitError = { message: data.error };
         }
-      });
-      
-      if (functionError) {
-        error = functionError;
-      } else if (data?.error) {
-        error = { message: data.error };
       }
-    }
 
-    if (!error) {
-      setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
-      setShowAddUser(false);
-      setEditUserId(null);
-      fetchUsers();
-    } else {
-      setError(error.message);
+      if (!submitError) {
+        setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
+        setShowAddUser(false);
+        setEditUserId(null);
+        fetchUsers();
+      } else {
+        setError(submitError.message);
+      }
+    } catch (err) {
+      console.error("User submit error:", err);
+      setError("Unexpected error: " + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -170,8 +180,8 @@ export default function AdminSettings() {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }}>
-              {editUserId ? 'Save Changes' : 'Create User'}
+            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }} disabled={saving}>
+              {saving ? 'Creating User...' : (editUserId ? 'Save Changes' : 'Create User')}
             </button>
           </form>
         </div>

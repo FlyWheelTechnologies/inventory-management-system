@@ -41,6 +41,7 @@ export default function Sales() {
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
   
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
@@ -114,6 +115,8 @@ export default function Sales() {
 
   const handleSubmit = async () => {
     if (items.length === 0 || !items[0].product_id) return setError('Please add at least one product.');
+    if (saving) return;
+    setSaving(true);
     
     setError('');
     const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
@@ -174,6 +177,8 @@ export default function Sales() {
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to record sale');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -384,6 +389,7 @@ export default function Sales() {
         onConfirm={handleSubmit}
         onCancel={() => setShowConfirm(false)}
         type="primary"
+        isLoading={saving}
       />
     </div>
   );

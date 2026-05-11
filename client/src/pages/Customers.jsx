@@ -22,6 +22,7 @@ export default function Customers() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [history, setHistory] = useState([]);
@@ -31,6 +32,9 @@ export default function Customers() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+
     const payload = {
       ...form,
       updated_at: new Date().toISOString()
@@ -52,6 +56,8 @@ export default function Customers() {
     } catch (err) {
       console.error("Customer save error:", err);
       alert("Failed to save customer: " + (err.message || "Unknown error"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -124,7 +130,9 @@ export default function Customers() {
               <input type="checkbox" id="contractor" checked={form.is_contractor} onChange={e => setForm({...form, is_contractor: e.target.checked})} />
               <label htmlFor="contractor" style={{ fontSize: 13, fontWeight: 600 }}>Is Contractor / Large Buyer?</label>
             </div>
-            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }}>{editingId ? 'Update Customer' : 'Save Customer'}</button>
+            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }} disabled={saving}>
+              {saving ? 'Saving...' : (editingId ? 'Update Customer' : 'Save Customer')}
+            </button>
           </form>
         </div>
       )}

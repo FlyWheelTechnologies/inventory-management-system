@@ -67,10 +67,12 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && isMounted) {
-        const fullUser = await fetchProfile(session.user);
-        if (isMounted) setUser(fullUser);
+        // Don't await here to avoid blocking the auth listener
+        fetchProfile(session.user).then(fullUser => {
+          if (isMounted) setUser(fullUser);
+        });
       } else if (isMounted) {
         setUser(null);
         localStorage.removeItem("user");

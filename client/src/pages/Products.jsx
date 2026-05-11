@@ -34,6 +34,7 @@ export default function Products() {
   const [editingId, setEditingId] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
@@ -45,6 +46,9 @@ export default function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+
     const payload = {
       ...form,
       cost_price: parseFloat(form.cost_price) || 0,
@@ -71,6 +75,8 @@ export default function Products() {
     } catch (err) {
       console.error("Product save error:", err);
       alert("Failed to save product: " + (err.message || "Unknown error"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -191,7 +197,9 @@ export default function Products() {
             <div><label style={lbl}>Selling Price (GHS)</label><input style={inp} type="number" step="0.01" value={form.selling_price} onChange={e => setForm(f=>({...f, selling_price:e.target.value}))} required /></div>
             <div><label style={lbl}>Stock Qty ({form.selling_uom}s)</label><input style={inp} type="number" value={form.stock_quantity} onChange={e => setForm(f=>({...f, stock_quantity:e.target.value}))} required /></div>
             <div><label style={lbl}>Low Stock Alert Level</label><input style={inp} type="number" value={form.low_stock_threshold} onChange={e => setForm(f=>({...f, low_stock_threshold:e.target.value}))} required /></div>
-            <button type="submit" className="quick-action-btn" style={{marginTop:'auto', height:38}}>{editingId ? 'Update Product' : 'Save Product'}</button>
+            <button type="submit" className="quick-action-btn" style={{marginTop:'auto', height:38}} disabled={saving}>
+              {saving ? 'Saving...' : (editingId ? 'Update Product' : 'Save Product')}
+            </button>
           </form>
         </div>
       )}
