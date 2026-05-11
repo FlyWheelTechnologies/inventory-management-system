@@ -73,9 +73,9 @@ export default function Dashboard() {
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
+    if (hour < 12) return "Morning";
+    if (hour < 17) return "Afternoon";
+    return "Evening";
   };
 
   const todayDate = new Date().toDateString();
@@ -107,7 +107,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div>
-            <h1 className="greeting">Good {getGreeting()}, {user?.full_name?.split(' ')[0] || 'Member'}!</h1>
+            <h1 className="greeting">Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
             <p className="greeting-sub">
               {lowStockCount > 0 
                 ? `You have ${lowStockCount} items running low. ` 
