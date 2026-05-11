@@ -166,7 +166,7 @@ export default function Dashboard() {
           <div className="table-card" style={{ padding: 20, minHeight: 350, overflow: 'hidden' }}>
             <h3 className="table-card__title" style={{ marginBottom: 20 }}>Revenue vs Expenses (Last 7 Days)</h3>
             <div style={{ height: 300, width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%" debounce={100}>
+              <ResponsiveContainer width="100%" height="100%" minHeight={300} debounce={100}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />

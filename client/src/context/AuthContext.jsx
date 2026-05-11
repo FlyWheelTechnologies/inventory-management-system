@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await fetchWithTimeout(
         supabase.from('profiles').select('*').eq('id', sessionUser.id).maybeSingle(),
-        15000
+        30000
       );
       if (error) {
         console.error("Profile fetch error:", error.message);
