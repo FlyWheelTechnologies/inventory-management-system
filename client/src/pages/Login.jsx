@@ -31,19 +31,23 @@ export default function Login() {
     setLoading(true);
     setErrorMsg("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
-
-    if (error) {
-      setErrorMsg(error.message);
-    } else {
-      // In Full Supabase mode, the login helper updates local state
-      login(data.user, data.session.access_token);
-      navigate("/dashboard");
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        login(data.user, data.session.access_token);
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error("Login crash:", err);
+      setErrorMsg("An unexpected error occurred. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
