@@ -48,8 +48,9 @@ Deno.serve(async (req: Request) => {
       return new Response('No admins to notify', { status: 200 });
     }
 
+    type SaleItem = { product_name: string; quantity: number; unit_price: number; subtotal: number };
     const itemsHtml = saleItems && saleItems.length > 0
-      ? saleItems.map(i => `
+      ? (saleItems as SaleItem[]).map((i: SaleItem) => `
           <tr>
             <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">${i.product_name}</td>
             <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: center;">${i.quantity}</td>
