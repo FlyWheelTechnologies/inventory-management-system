@@ -8,11 +8,19 @@
 }
 
 :root {
+  --brand-primary: #f15a24;
+  --brand-primary-hover: #d94e1d;
+  --brand-secondary: #333333;
+  --brand-charcoal: #1f2937;
+  --brand-bg-light: #fff3ef;
+  --brand-surface: #ffffff;
+  --brand-bg-main: #f5f6fa;
+  
   font-family: 'Inter', system-ui, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #111827;
-  background-color: #f5f6fa;
+  background-color: var(--brand-bg-main);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

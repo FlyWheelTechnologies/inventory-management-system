@@ -224,7 +224,7 @@ export default function Layout({ children }) {
           height: 32px;
           border-radius: 50%;
           object-fit: cover;
-          background: #2563eb;
+          background: var(--brand-primary);
           color: white;
           display: flex;
           align-items: center;
@@ -252,8 +252,8 @@ export default function Layout({ children }) {
         .topbar__clock {
           font-size: 18px;
           font-weight: 700;
-          color: #2563eb;
-          background: #eff6ff;
+          color: var(--brand-primary);
+          background: var(--brand-bg-light);
           padding: 6px 16px;
           border-radius: 10px;
           letter-spacing: -0.5px;
@@ -360,7 +360,7 @@ export default function Layout({ children }) {
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
         .form-group input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
-        .form-group input:focus { border-color: #2563eb; ring: 2px solid #dbeafe; }
+        .form-group input:focus { border-color: var(--brand-primary); ring: 2px solid var(--brand-bg-light); }
         
         .avatar-presets {
           display: grid;
@@ -378,7 +378,7 @@ export default function Layout({ children }) {
           background: #f9fafb;
         }
         .preset-item:hover { transform: scale(1.05); border-color: #e5e7eb; }
-        .preset-item--active { border-color: #2563eb; background: #eff6ff; }
+        .preset-item--active { border-color: var(--brand-primary); background: var(--brand-bg-light); }
         .preset-item img { width: 100%; height: 100%; object-fit: cover; }
 
         .avatar-preview-container {
@@ -394,8 +394,8 @@ export default function Layout({ children }) {
         .modal-actions button { flex: 1; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; }
         .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
         .btn-secondary:hover { background: #e5e7eb; }
-        .btn-primary { background: #2563eb; color: white; border: none; }
-        .btn-primary:hover { background: #1d4ed8; }
+        .btn-primary { background: var(--brand-primary); color: white; border: none; }
+        .btn-primary:hover { background: var(--brand-primary-hover); }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
     </div>

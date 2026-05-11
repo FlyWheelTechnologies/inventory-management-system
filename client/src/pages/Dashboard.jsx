@@ -109,7 +109,7 @@ export default function Dashboard() {
           <img src="/logo.png" alt="Flywheel Logo" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
           <div>
             <h2 className="section-title">
-              {getGreeting()}, <span style={{ color: '#2563eb' }}>{userName}</span>
+              {getGreeting()}, <span style={{ color: 'var(--brand-primary)' }}>{userName}</span>
             </h2>
             <p style={{ color: '#6b7280', fontSize: '13px' }}>
               It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -119,7 +119,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 10 }}>
           {user?.role !== 'auditor' && (
             <>
-              <button className="quick-action-btn" style={{ background: '#2563eb' }} onClick={() => navigate("/products")}>+ Add Stock</button>
+              <button className="quick-action-btn" style={{ background: 'var(--brand-primary)' }} onClick={() => navigate("/products")}>+ Add Stock</button>
               <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales")}>Record Sale</button>
             </>
           )}
@@ -167,8 +167,8 @@ export default function Dashboard() {
                   <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
                   <ChartTooltip cursor={{fill: '#f8faff'}} contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: 20 }} />
-                  <Bar dataKey="Revenue" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={30} />
-                  <Bar dataKey="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
+                  <Bar dataKey="Revenue" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} barSize={30} />
+                  <Bar dataKey="Expenses" fill="var(--brand-secondary)" radius={[4, 4, 0, 0]} barSize={30} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
