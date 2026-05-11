@@ -12,7 +12,9 @@ const AVATAR_PRESETS = [
   "/avatars/avatar1.png",
   "/avatars/avatar2.png",
   "/avatars/avatar3.png",
-  "/avatars/avatar4.png"
+  "/avatars/avatar4.png",
+  "/avatars/avatar5.png",
+  "/avatars/avatar6.png"
 ];
 
 const ProfileModal = ({ isOpen, onClose }) => {
@@ -20,6 +22,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [name, setName] = useState(user?.full_name || "");
   const [avatar, setAvatar] = useState(user?.avatar_url || "");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (user) {
@@ -30,19 +34,64 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image size must be less than 2MB");
+      return;
+    }
+
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      alert(uploadError.message);
+      setUploading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    setAvatar(publicUrl);
+    setUploading(false);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    // 1. Update Supabase Auth User Metadata
     const { data, error } = await supabase.auth.updateUser({ 
       data: { full_name: name, avatar_url: avatar } 
     });
-    setLoading(false);
+
     if (!error) {
-      updateUser(data);
+      // 2. Update our public 'profiles' table for RBAC visibility
+      await supabase
+        .from('profiles')
+        .upsert({ 
+          id: user.id, 
+          full_name: name, 
+          avatar_url: avatar,
+          updated_at: new Date().toISOString()
+        });
+
+      updateUser(data.user);
       onClose();
     } else {
       alert(error.message);
     }
+    setLoading(false);
   };
 
   return (
@@ -76,14 +125,26 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: '12px' }}>
-              <label style={{ fontSize: '11px', color: '#6b7280' }}>Or paste custom image URL</label>
-              <input 
-                type="text" 
-                value={avatar} 
-                onChange={(e) => setAvatar(e.target.value)} 
-                placeholder="https://example.com/photo.jpg"
-              />
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>OR UPLOAD PHOTO</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  style={{ flex: 1, fontSize: '12px' }}
+                  onClick={() => fileInputRef.current.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? "Uploading..." : "Choose File"}
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                />
+              </div>
             </div>
           </div>
           {avatar && (

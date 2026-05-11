@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -14,7 +14,7 @@ import Layout from "./components/Layout";
 
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
@@ -27,7 +27,7 @@ function App() {
         <Route path="/logs" element={<ProtectedRoute><Layout><Logs /></Layout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Layout><AdminSettings /></Layout></ProtectedRoute>} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 

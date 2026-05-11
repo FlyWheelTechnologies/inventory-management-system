@@ -29,19 +29,28 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Check active session on mount
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const fullUser = await fetchProfile(session.user);
-        setUser(fullUser);
-        localStorage.setItem("user", JSON.stringify(fullUser));
-        if (navigator.onLine) {
-          SyncService.syncAllTables();
+      console.log("Checking session...");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log("Session found, fetching profile...");
+          const fullUser = await fetchProfile(session.user);
+          setUser(fullUser);
+          localStorage.setItem("user", JSON.stringify(fullUser));
+          if (navigator.onLine) {
+            SyncService.syncAllTables();
+          }
+        } else {
+          console.log("No session found.");
+          setUser(null);
+          localStorage.removeItem("user");
         }
-      } else {
-        setUser(null);
-        localStorage.removeItem("user");
+      } catch (err) {
+        console.error("Auth initialization error:", err);
+      } finally {
+        console.log("Auth loading complete.");
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkSession();

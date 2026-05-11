@@ -7,7 +7,7 @@ export const db = new Dexie('FlywheelInventoryDB');
 // When syncing from Supabase, we might use their UUIDs or remote IDs, so we keep a separate "supabase_id" or just use "id" if it matches.
 // In this case, since we want to sync *to* Supabase, we can use local UUIDs or let Supabase assign them. 
 // A robust offline-first app uses UUIDs generated locally as primary keys. 
-db.version(1).stores({
+db.version(2).stores({
   products: '++id, item_code, name, category, created_at, supabase_id, sync_status',
   customers: '++id, name, phone, created_at, supabase_id, sync_status',
   sales: '++id, customer_id, created_at, payment_status, supabase_id, sync_status',
