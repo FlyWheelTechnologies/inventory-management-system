@@ -54,8 +54,8 @@ Deno.serve(async (req: Request) => {
           <tr>
             <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">${i.product_name}</td>
             <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: center;">${i.quantity}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right;">GHS ${parseFloat(i.unit_price).toFixed(2)}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 600;">GHS ${parseFloat(i.subtotal).toFixed(2)}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right;">GHS ${Number(i.unit_price).toFixed(2)}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 600;">GHS ${Number(i.subtotal).toFixed(2)}</td>
           </tr>
         `).join('')
       : '<tr><td colspan="4" style="padding: 12px; text-align: center; color: #9ca3af;">No items listed</td></tr>';
@@ -87,15 +87,15 @@ Deno.serve(async (req: Request) => {
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280;">Order Total</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right;">GHS ${parseFloat(record.total_amount).toFixed(2)}</td>
+                <td style="padding: 8px 0; font-weight: 600; text-align: right;">GHS ${Number(record.total_amount).toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #059669; font-weight: 600;">Deposit Received</td>
-                <td style="padding: 8px 0; font-weight: 700; text-align: right; color: #059669;">GHS ${parseFloat(record.amount_paid).toFixed(2)}</td>
+                <td style="padding: 8px 0; font-weight: 700; text-align: right; color: #059669;">GHS ${Number(record.amount_paid).toFixed(2)}</td>
               </tr>
               <tr style="border-top: 1px solid #bfdbfe;">
                 <td style="padding: 10px 0; color: #1e40af; font-weight: 600;">Balance on Delivery</td>
-                <td style="padding: 10px 0; font-weight: 700; text-align: right; color: #1e40af;">GHS ${parseFloat(record.balance_due).toFixed(2)}</td>
+                <td style="padding: 10px 0; font-weight: 700; text-align: right; color: #1e40af;">GHS ${Number(record.balance_due).toFixed(2)}</td>
               </tr>
             </table>
           </div>
@@ -141,7 +141,7 @@ Deno.serve(async (req: Request) => {
       if (admin.email) {
         await sendEmail({
           to: admin.email,
-          subject: `📥 New Deposit: ${record.customer_name} — GHS ${parseFloat(record.total_amount).toFixed(2)}`,
+          subject: `📥 New Deposit: ${record.customer_name} — GHS ${Number(record.total_amount).toFixed(2)}`,
           html,
         });
       }

@@ -42,12 +42,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const isDeposit = record.payment_status === 'DEPOSIT';
-    const statusColor = {
+    const statusColorMap: Record<string, string> = {
       PAID: '#059669',
       PARTIAL: '#f59e0b',
       DEPOSIT: '#3b82f6',
       UNPAID: '#ef4444',
-    }[record.payment_status] ?? '#6b7280';
+    };
+    const statusColor = statusColorMap[record.payment_status] ?? '#6b7280';
 
     const html = `
       <div style="font-family: 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
@@ -80,15 +81,15 @@ Deno.serve(async (req: Request) => {
               </tr>
               <tr style="border-top: 1px solid #e5e7eb;">
                 <td style="padding: 12px 0; font-size: 16px; font-weight: 700;">Total</td>
-                <td style="padding: 12px 0; font-size: 16px; font-weight: 700; text-align: right;">GHS ${parseFloat(record.total_amount).toFixed(2)}</td>
+                <td style="padding: 12px 0; font-size: 16px; font-weight: 700; text-align: right;">GHS ${Number(record.total_amount).toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280;">${isDeposit ? 'Deposit Paid' : 'Amount Paid'}</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #059669;">GHS ${parseFloat(record.amount_paid).toFixed(2)}</td>
+                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #059669;">GHS ${Number(record.amount_paid).toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280;">${isDeposit ? 'Balance on Delivery' : 'Balance Due'}</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #ef4444;">GHS ${parseFloat(record.balance_due).toFixed(2)}</td>
+                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #ef4444;">GHS ${Number(record.balance_due).toFixed(2)}</td>
               </tr>
             </table>
           </div>
@@ -102,7 +103,7 @@ Deno.serve(async (req: Request) => {
 
           ${isDeposit ? `
           <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 20px 0; font-size: 13px; color: #1e40af;">
-            <strong>Deposit Note:</strong> Your payment of GHS ${parseFloat(record.amount_paid).toFixed(2)} has been received and is held as an advance deposit. The remaining GHS ${parseFloat(record.balance_due).toFixed(2)} is due on delivery.
+            <strong>Deposit Note:</strong> Your payment of GHS ${Number(record.amount_paid).toFixed(2)} has been received and is held as an advance deposit. The remaining GHS ${Number(record.balance_due).toFixed(2)} is due on delivery.
           </div>
           ` : ''}
         </div>
