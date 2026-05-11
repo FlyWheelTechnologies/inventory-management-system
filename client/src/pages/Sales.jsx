@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../services/supabaseClient";
 import ConfirmationModal from "../components/ConfirmationModal";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import "./Dashboard.css";
 
 const playSound = (type) => {
@@ -84,12 +84,12 @@ export default function Sales() {
     doc.text('Management System Receipt', 40, 14, { align: 'center' });
     doc.text('------------------------------------------', 40, 18, { align: 'center' });
     
-    doc.text(`Receipt #: ${sale.id.slice(0, 8).toUpperCase()}`, 5, 24);
+    doc.text(`Receipt #: INV-${String(sale.invoice_no || sale.id).padStart(3, '0')}`, 5, 24);
     doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 28);
     doc.text(`Customer: ${sale.customer_name}`, 5, 32);
     doc.text(`Attendant: ${sale.attendant_email}`, 5, 36);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 40,
       margin: { left: 5, right: 5 },
       head: [['Item', 'Qty', 'Price', 'Sub']],
@@ -378,7 +378,7 @@ export default function Sales() {
                 <tr><td colSpan="8" style={{textAlign:'center', padding:24}}>No transactions found.</td></tr>
               ) : paginated.map(s => (
                 <tr key={s.id}>
-                  <td className="table-code">#{s.id}</td>
+                  <td className="table-code">#INV-{String(s.invoice_no || s.id).slice(-6).padStart(3, '0')}</td>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td>{s.customer_name}</td>
                   <td style={{fontWeight:600}}>GHS {parseFloat(s.total_amount).toFixed(2)}</td>

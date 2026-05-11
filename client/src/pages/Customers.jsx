@@ -202,7 +202,7 @@ export default function Customers() {
                   ) : history.map(h => (
                     <tr key={h.id}>
                       <td>{new Date(h.created_at).toLocaleDateString()}</td>
-                      <td className="table-code">#{h.id.slice(0, 8)}</td>
+                      <td className="table-code">#INV-{String(h.invoice_no || h.id).slice(-6).padStart(3, '0')}</td>
                       <td style={{ fontWeight: 600 }}>GHS {parseFloat(h.total_amount).toFixed(2)}</td>
                       <td><span className={`status-pill status-pill--${h.payment_status === 'PAID' ? 'ok' : 'low'}`} style={{ fontSize: 10 }}>{h.payment_status}</span></td>
                     </tr>
