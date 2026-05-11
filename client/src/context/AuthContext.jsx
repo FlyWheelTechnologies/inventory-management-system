@@ -39,13 +39,18 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     const initAuth = async () => {
+      // Fail-safe: if initAuth takes more than 5 seconds, stop loading so user can at least see the login page
+      const timer = setTimeout(() => {
+        if (isMounted && loading) {
+          console.warn("Auth initialization taking too long, forcing load completion.");
+          setLoading(false);
+        }
+      }, 5000);
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session && isMounted) {
-          // If we have a session, we're logged in. 
-          // We already have 'user' from state if cached, so we don't block.
-          // Just fetch fresh data in background.
           fetchProfile(session.user).then(fullUser => {
             if (isMounted) setUser(fullUser);
           });
@@ -60,6 +65,7 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error("Auth init error:", err);
       } finally {
+        clearTimeout(timer);
         if (isMounted) setLoading(false);
       }
     };
