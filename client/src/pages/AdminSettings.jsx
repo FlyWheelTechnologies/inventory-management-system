@@ -58,11 +58,21 @@ export default function AdminSettings() {
       }).eq('id', editUserId);
       error = updateError;
     } else {
-      // Create new user (Simulated here. In production use Supabase Admin API or send a magic link)
-      // We will try to use signIn/signUp, but since this is an admin panel, edge functions are best.
-      // For now, we'll show an error if they try to create a user this way because client-side signUp 
-      // automatically logs the admin out.
-      error = { message: "To add a new user safely, use the Supabase Dashboard, or implement an Edge Function to avoid logging out the current admin." };
+      // Create new user via Edge Function (Prevents Admin logout)
+      const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role,
+          full_name: newUser.full_name
+        }
+      });
+      
+      if (functionError) {
+        error = functionError;
+      } else if (data?.error) {
+        error = { message: data.error };
+      }
     }
 
     if (!error) {
