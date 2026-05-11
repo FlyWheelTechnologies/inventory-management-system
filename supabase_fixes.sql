@@ -91,6 +91,14 @@ CREATE POLICY "Allow authenticated select" ON public.products FOR SELECT TO auth
 CREATE POLICY "Allow authenticated update" ON public.products FOR UPDATE TO authenticated USING (public.has_role(ARRAY['admin', 'storekeeper']));
 CREATE POLICY "Allow authenticated delete" ON public.products FOR DELETE TO authenticated USING (public.has_role(ARRAY['admin']));
 
+-- Ensure Product Schema is complete
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS buying_uom TEXT DEFAULT 'pcs';
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS selling_uom TEXT DEFAULT 'pcs';
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS conversion_factor NUMERIC DEFAULT 1;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS cost_price NUMERIC DEFAULT 0;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS selling_price NUMERIC DEFAULT 0;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER DEFAULT 10;
+
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated insert" ON public.sales;
 DROP POLICY IF EXISTS "Allow authenticated select" ON public.sales;

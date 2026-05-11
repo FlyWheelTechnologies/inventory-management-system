@@ -21,7 +21,7 @@ const NAV_ITEMS = [
     children: [
       { id: "sales-list", label: "Sales Records", path: "/sales" },
       { id: "customers-list", label: "Customers", path: "/customers" },
-      { id: "debtors", label: "Debtors Ledger", path: "/debtors", roles: ['admin', 'auditor'] },
+      { id: "debtors", label: "Advance Deposits", path: "/debtors", roles: ['admin', 'auditor'] },
     ],
   },
   {

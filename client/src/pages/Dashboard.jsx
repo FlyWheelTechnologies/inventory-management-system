@@ -5,7 +5,7 @@ import { db } from "../services/db";
 import { useAuth } from "../context/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import "./Dashboard.css";
 
 const InfoTip = ({ text }) => (
@@ -51,7 +51,7 @@ export default function Dashboard() {
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 40,
       head: [['Metric', 'Value']],
       body: [
@@ -62,7 +62,7 @@ export default function Dashboard() {
     });
 
     doc.text('Recent Sales Status', 14, doc.lastAutoTable.finalY + 10);
-    doc.autoTable({
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 15,
       head: [['Product', 'Stock Qty', 'Status']],
       body: products.slice(0, 10).map(p => [p.name, p.stock_quantity, p.stock_quantity < 10 ? 'LOW' : 'OK']),
@@ -141,6 +141,12 @@ export default function Dashboard() {
             />
           </>
         )}
+        <StatCard
+          label={<>Pending Deposits <InfoTip text="Orders paid in advance awaiting fulfillment." /></>}
+          value={`${sales.filter(s => s.payment_status === 'pending' || s.payment_status === 'partial').length} Orders`}
+          accent="primary"
+          icon="⏳"
+        />
         <StatCard
           label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
           value={`GHS ${stockValue.toFixed(2)}`}
