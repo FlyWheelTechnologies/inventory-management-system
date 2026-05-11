@@ -126,7 +126,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="greeting-card__content">
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', marginBottom: 4, letterSpacing: 1 }}>FlorzyAngel Enterprise</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 1.5 }}>FlorzyAngel Enterprise</div>
             <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
             <p className="greeting-sub">
               {lowStockCount > 0 
@@ -231,12 +231,12 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div className="summary-card">
                     <div className="summary-card__label">Best Seller</div>
-                    <div className="summary-card__value">Cement Grade 42.5</div>
+                    <div className="summary-card__value">{bestSeller}</div>
                     <div className="summary-card__sub">Top items by volume</div>
                   </div>
                   <div className="summary-card" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>
                     <div className="summary-card__label" style={{ color: '#065f46' }}>Gross Margin</div>
-                    <div className="summary-card__value" style={{ color: '#065f46' }}>32.4%</div>
+                    <div className="summary-card__value" style={{ color: '#065f46' }}>{grossMargin}%</div>
                     <div className="summary-card__sub" style={{ color: '#047857' }}>Healthy profitability</div>
                   </div>
                 </div>

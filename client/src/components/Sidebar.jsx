@@ -72,19 +72,22 @@ export default function Sidebar({ collapsed, onToggle }) {
           <img src="/logo.png" alt="Flywheel Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
         {!collapsed && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-            <span className="sidebar__logo-text">Flywheel</span>
-            <button 
-              onClick={() => window.location.reload()} 
-              style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#6b7280', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#f97316'}
-              onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
-              title="Refresh Data"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: -4 }}>Powered by</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+              <span className="sidebar__logo-text">Flywheel</span>
+              <button 
+                onClick={() => window.location.reload()} 
+                style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#6b7280', transition: 'color 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#f97316'}
+                onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
+                title="Refresh Data"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </div>
