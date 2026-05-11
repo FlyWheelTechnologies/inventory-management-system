@@ -81,12 +81,16 @@ export default function Dashboard() {
   const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === new Date().toDateString())
                           .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
 
+  const userName = user?.full_name || user?.email?.split('@')[0];
+
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 className="section-title">{getGreeting()}, {user?.email?.split('@')[0]}</h2>
+        <h2 className="section-title">
+          {getGreeting()}, <span style={{ color: '#2563eb' }}>{userName}</span>
+        </h2>
         <p style={{ color: '#6b7280', fontSize: '13px' }}>
-          It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </p>
       </div>
 

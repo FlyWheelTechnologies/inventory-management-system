@@ -18,9 +18,16 @@ export default function Layout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const { user } = useAuth();
   const navigate = useNavigate();
   const menuRef = useRef(null);
+
+  // Update clock every minute
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -129,6 +136,13 @@ export default function Layout({ children }) {
           <div className="topbar__left">
             <h1 className="topbar__title">FlorzyAngel Enterprise System</h1>
           </div>
+
+          <div className="topbar__center">
+            <div className="topbar__clock">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+
           <div className="topbar__right">
             <div className="topbar__user-container" ref={menuRef}>
               <div className="topbar__user" onClick={() => setShowProfileMenu(!showProfileMenu)}>
@@ -200,6 +214,33 @@ export default function Layout({ children }) {
           display: flex;
           flex-direction: column;
           line-height: 1.2;
+        }
+        .topbar__title {
+          font-size: 17px;
+          font-weight: 600;
+          color: #111827;
+          white-space: nowrap;
+        }
+        .topbar__center {
+          flex: 1;
+          display: flex;
+          justify-content: flex-end;
+          padding-right: 24px;
+        }
+        .topbar__clock {
+          font-size: 18px;
+          font-weight: 700;
+          color: #2563eb;
+          background: #eff6ff;
+          padding: 6px 16px;
+          border-radius: 10px;
+          letter-spacing: -0.5px;
+          box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+        }
+        .topbar__right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
         }
         .topbar__user-name {
           font-size: 13.5px;
