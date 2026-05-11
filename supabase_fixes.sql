@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT,
   full_name TEXT,
   role TEXT DEFAULT 'storekeeper',
-  avatar_url TEXT
+  avatar_url TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
