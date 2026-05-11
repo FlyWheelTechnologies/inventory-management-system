@@ -93,12 +93,26 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Sign out error:", err);
+    }
+    
+    // Clear state and storage immediately
+    setUser(null);
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
-    setUser(null);
-    // Clear local DB to prevent data leaks between accounts
-    import('../services/db').then(m => m.db.delete()).then(() => window.location.reload());
+    
+    try {
+      // Try to clear local DB but don't let it hang the logout
+      const m = await import('../services/db');
+      await m.db.delete();
+    } catch (err) {
+      console.warn("DB deletion error during logout:", err);
+    } finally {
+      window.location.href = "/"; // Force reload to login
+    }
   };
 
   const updateUser = (userData) => {

@@ -182,7 +182,7 @@ export default function Layout({ children }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
@@ -210,9 +210,7 @@ export default function Layout({ children }) {
       return;
     }
     
-    await supabase.auth.signOut();
-    // Clear Dexie database for next user to prevent data mixing
-    await import('../services/db').then(m => m.db.delete()).then(() => window.location.reload());
+    await logout();
   };
 
   return (
