@@ -85,7 +85,7 @@ export default function Login() {
           <div className="flywheel-static"></div>
         </div>
         <h2 className="auth-title">Welcome Back</h2>
-        <p className="auth-subtitle">Login to your Flywheel instance</p>
+        <p className="auth-subtitle">Login to manage your inventory and accounts  </p>
 
         {errorMsg && <div className="auth-error">{errorMsg}</div>}
 

@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
       .from('profiles')
       .select('*')
       .eq('id', sessionUser.id)
-      .single();
+      .maybeSingle();
 
     if (!error && data) {
       return { ...sessionUser, ...data };

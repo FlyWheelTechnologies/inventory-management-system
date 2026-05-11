@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
 
@@ -16,6 +17,8 @@ const UOM_PRESETS = {
 const emptyForm = { name:'', category:'General', buying_uom:'Piece', selling_uom:'Piece', conversion_factor:1, cost_price:'', selling_price:'', stock_quantity:'', low_stock_threshold: 10 };
 
 export default function Products() {
+  const { user } = useAuth();
+  const isAuditor = user?.role === 'auditor';
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({...emptyForm});
   const [showForm, setShowForm] = useState(false);
