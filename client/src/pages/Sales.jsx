@@ -36,6 +36,7 @@ export default function Sales() {
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
+  const [isDeposit, setIsDeposit] = useState(false);
 
   const filteredCustomers = customerSearch.length > 1
     ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
@@ -130,7 +131,9 @@ export default function Sales() {
       }));
 
       const payloadAmountPaid = parseFloat(amountPaid) || 0;
-      const status = balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'CREDIT';
+      // Deposit: customer pays in advance — status is DEPOSIT regardless of balance
+      // Normal: PAID if balance<=0, PARTIAL if some paid, else unpaid
+      const status = isDeposit ? 'DEPOSIT' : (balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'UNPAID');
       const created_at = new Date().toISOString();
       const supabase_id = crypto.randomUUID();
 
@@ -164,14 +167,24 @@ export default function Sales() {
           }
         }
         
-        // Journal entries
-        if (payloadAmountPaid > 0) {
-          await db.journal_entries.add({ sale_id: saleId, account_type: paymentMethod.toUpperCase(), debit: payloadAmountPaid, credit: 0, description: `${paymentMethod} received`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
+        // ── Journal Entries (Double-Entry Accounting) ───────────────
+        if (isDeposit) {
+          // DEPOSIT accounting:
+          // DR Cash/Momo (money received)
+          // CR Customer Deposits (liability — we owe the customer the goods)
+          if (payloadAmountPaid > 0) {
+            await db.journal_entries.add({ sale_id: saleId, account_type: paymentMethod.toUpperCase(), debit: payloadAmountPaid, credit: 0, description: `Deposit received from ${customerName}`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
+            await db.journal_entries.add({ sale_id: saleId, account_type: 'CUSTOMER_DEPOSITS', debit: 0, credit: payloadAmountPaid, description: `Advance deposit — Order pending fulfillment`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
+          }
+        } else {
+          // NORMAL SALE accounting:
+          // DR Cash (amount paid) → CR Revenue
+          // DR Accounts Receivable (balance owed) → CR Revenue
+          if (payloadAmountPaid > 0) {
+            await db.journal_entries.add({ sale_id: saleId, account_type: paymentMethod.toUpperCase(), debit: payloadAmountPaid, credit: 0, description: `${paymentMethod} received`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
+          }
+          await db.journal_entries.add({ sale_id: saleId, account_type: 'REVENUE', debit: 0, credit: total, description: `Revenue from sale`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
         }
-        if (balance > 0) {
-          await db.journal_entries.add({ sale_id: saleId, account_type: 'ACCOUNTS_RECEIVABLE', debit: balance, credit: 0, description: `Credit given`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
-        }
-        await db.journal_entries.add({ sale_id: saleId, account_type: 'REVENUE', debit: 0, credit: total, description: `Revenue`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
       });
 
       // Queue RPC for Supabase
@@ -198,6 +211,7 @@ export default function Sales() {
       setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
       setAmountPaid(''); setPaymentMethod('Cash'); setNotes('');
       setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch('');
+      setIsDeposit(false);
     } catch (err) {
       playSound('error');
       setError(err.message || 'Failed to record sale');
@@ -313,10 +327,26 @@ export default function Sales() {
             </table>
             <button type="button" onClick={() => setItems([...items, { product_id:'', product_name:'', quantity:1, unit_price:0 }])} style={{background:'#f3f4f6', border:'1px solid #ddd', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:13, marginBottom:20}}>+ Add Item</button>
 
+            {/* Deposit Toggle */}
+            <div style={{ display:'flex', alignItems:'center', gap:12, margin:'12px 0', padding:'12px 16px', background: isDeposit ? '#ecfdf5' : '#eff6ff', borderRadius:10, border: `1.5px solid ${isDeposit ? '#10b981' : '#3b82f6'}` }}>
+              <button
+                type="button"
+                onClick={() => setIsDeposit(!isDeposit)}
+                style={{ background: isDeposit ? '#10b981' : '#3b82f6', color:'#fff', border:'none', borderRadius:20, padding:'6px 18px', fontWeight:700, cursor:'pointer', fontSize:13, transition:'all 0.2s' }}
+              >
+                {isDeposit ? '✓ Marked as Deposit' : '📥 Mark as Deposit'}
+              </button>
+              <span style={{ fontSize:12, color: isDeposit ? '#065f46' : '#1e40af' }}>
+                {isDeposit
+                  ? 'Payment held as advance deposit. Revenue recorded when order is fulfilled.'
+                  : 'Toggle this if the customer is paying in advance for a future order.'}
+              </span>
+            </div>
+
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, padding:16, background:'#f9fafb', borderRadius:10 }}>
               <div><label style={lbl}>Total Amount</label><p style={{fontSize:22, fontWeight:700}}>GHS {total.toFixed(2)}</p></div>
               <div>
-                <label style={lbl}>Amount Paid (GHS) <InfoTip text="How much the customer is paying right now." /></label>
+                <label style={lbl}>{isDeposit ? 'Deposit Amount (GHS)' : 'Amount Paid (GHS)'} <InfoTip text={isDeposit ? 'How much the customer is depositing in advance.' : 'How much the customer is paying right now.'} /></label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input style={inp} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
                   <select style={{...inp, width: 130}} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
@@ -327,13 +357,13 @@ export default function Sales() {
                 </div>
               </div>
               <div>
-                <label style={lbl}>Balance Due <InfoTip text="Outstanding amount to be tracked in the Debtors Ledger." /></label>
-                <p style={{fontSize:22, fontWeight:700, color: balance > 0 ? '#ef4444' : '#059669'}}>GHS {balance.toFixed(2)}</p>
+                <label style={lbl}>{isDeposit ? 'Balance to Collect on Delivery' : 'Balance Due'}</label>
+                <p style={{fontSize:22, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(2)}</p>
               </div>
             </div>
 
-            <button type="button" onClick={() => setShowConfirm(true)} className="quick-action-btn" style={{ marginTop:16 }}>
-              Finish Sale & Record Payment
+            <button type="button" onClick={() => setShowConfirm(true)} className="quick-action-btn" style={{ marginTop:16, background: isDeposit ? '#10b981' : undefined }}>
+              {isDeposit ? '📥 Record Deposit' : 'Finish Sale & Record Payment'}
             </button>
           </div>
         </div>
@@ -348,7 +378,8 @@ export default function Sales() {
               <option value="All">All Status</option>
               <option value="PAID">Paid</option>
               <option value="PARTIAL">Partial</option>
-              <option value="CREDIT">Credit</option>
+              <option value="DEPOSIT">Deposits</option>
+              <option value="UNPAID">Unpaid</option>
             </select>
             <input type="search" className="table-search" placeholder="Search customer..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>

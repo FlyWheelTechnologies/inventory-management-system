@@ -108,7 +108,7 @@ CREATE TABLE public.sales (
   total_amount   NUMERIC DEFAULT 0,
   amount_paid    NUMERIC DEFAULT 0,
   balance_due    NUMERIC DEFAULT 0,
-  payment_status TEXT DEFAULT 'PAID',
+  payment_status TEXT DEFAULT 'PAID' CHECK (payment_status IN ('PAID','PARTIAL','DEPOSIT','UNPAID')),
   payment_method TEXT DEFAULT 'Cash',
   notes          TEXT,
   recorded_by    TEXT,
@@ -178,19 +178,19 @@ CREATE POLICY "logs_select" ON public.logs FOR SELECT TO authenticated USING (pu
 CREATE POLICY "logs_insert" ON public.logs FOR INSERT TO authenticated WITH CHECK (true);
 
 -- ── 11. DEPOSITS VIEW (replaces Debtors) ────────────────────
--- Shows customers with pending/partial payments (advance deposits)
+-- Shows customers with DEPOSIT status (paid in advance, awaiting fulfillment)
 CREATE VIEW public.debtors
 WITH (security_invoker = true) AS
 SELECT
   c.id            AS customer_id,
   c.full_name     AS customer_name,
   c.phone,
-  SUM(s.total_amount - s.amount_paid)                           AS total_debt,
+  SUM(s.amount_paid)                                            AS total_debt,  -- amount held as deposit
   MAX(s.created_at)                                             AS last_sale_date,
-  COUNT(s.id) FILTER (WHERE s.payment_status IN ('PARTIAL', 'pending')) AS pending_sales_count
+  COUNT(s.id)                                                   AS pending_sales_count
 FROM public.sales s
 JOIN public.customers c ON s.customer_id = c.id
-WHERE s.payment_status != 'PAID'
+WHERE s.payment_status = 'DEPOSIT'
 GROUP BY c.id, c.full_name, c.phone;
 
 GRANT SELECT ON public.debtors TO authenticated;
