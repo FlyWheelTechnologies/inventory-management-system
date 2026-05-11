@@ -70,36 +70,34 @@ const ProfileModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     setLoading(true);
     
-    // 1. Update Supabase Auth User Metadata
-    const { data, error } = await supabase.auth.updateUser({ 
-      data: { full_name: name, avatar_url: avatar } 
-    });
+    // 1. Update public 'profiles' table FIRST (Fastest)
+    const profileUpdate = { 
+      id: user.id, 
+      full_name: name, 
+      avatar_url: avatar,
+      updated_at: new Date().toISOString()
+    };
 
-    if (!error) {
-      // 2. Update our public 'profiles' table for RBAC visibility
-      const profileUpdate = { 
-        id: user.id, 
-        full_name: name, 
-        avatar_url: avatar,
-        updated_at: new Date().toISOString()
-      };
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(profileUpdate);
 
-      await supabase
-        .from('profiles')
-        .upsert(profileUpdate);
-
-      // 3. Manually merge the new data for immediate UI update
-      // supabase.auth.updateUser returns the user object, but we need to ensure 
-      // the top-level properties from the profile table are preserved.
+    if (!profileError) {
+      // 2. Update local state immediately for instant feedback
       updateUser({ 
-        ...data.user, 
+        ...user, 
         full_name: name, 
         avatar_url: avatar 
       });
       
+      // 3. Update Supabase Auth in the background (slower management API)
+      supabase.auth.updateUser({ 
+        data: { full_name: name, avatar_url: avatar } 
+      });
+
       onClose();
     } else {
-      alert(error.message);
+      alert(profileError.message);
     }
     setLoading(false);
   };

@@ -107,11 +107,12 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div>
-            <h2 className="section-title">
-              {getGreeting()}, <span style={{ color: 'var(--brand-primary)' }}>{userName}</span>
-            </h2>
-            <p style={{ color: '#6b7280', fontSize: '13px' }}>
-              It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <h1 className="greeting">Good {getGreeting()}, {user?.full_name?.split(' ')[0] || 'Member'}!</h1>
+            <p className="greeting-sub">
+              {lowStockCount > 0 
+                ? `You have ${lowStockCount} items running low. ` 
+                : 'All stock levels are healthy. '}
+              Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>GHS {todayRevenue.toFixed(2)}</span>.
             </p>
           </div>
         </div>
