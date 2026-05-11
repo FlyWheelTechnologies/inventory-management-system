@@ -30,10 +30,31 @@ export default function Sales() {
   
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [items, setItems] = useState([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
+
+  const filteredCustomers = customerSearch.length > 1
+    ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
+    : [];
+
+  const handleCustomerSelect = (c) => {
+    setCustomerId(c.id);
+    setCustomerName(c.name);
+    setCustomerSearch(c.name);
+    setShowCustomerSuggestions(false);
+  };
+
+  const handleCustomerInputChange = (e) => {
+    const val = e.target.value;
+    setCustomerSearch(val);
+    setCustomerName(val || 'Walk-in Customer');
+    setCustomerId('');
+    setShowCustomerSuggestions(true);
+  };
 
   // fetchAll not needed since useLiveQuery handles it automatically
 
@@ -83,6 +104,23 @@ export default function Sales() {
     const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
 
     try {
+      // Auto-add new customer if a name was typed that doesn't exist yet
+      let resolvedCustomerId = customerId ? parseInt(customerId) : null;
+      const isNewCustomer = customerName && customerName !== 'Walk-in Customer' && !customerId;
+      if (isNewCustomer) {
+        resolvedCustomerId = await db.customers.add({
+          name: customerName,
+          phone: '',
+          email: '',
+          is_contractor: 0,
+          created_at: new Date().toISOString(),
+          supabase_id: crypto.randomUUID(),
+          sync_status: 'pending'
+        });
+        // Queue sync to Supabase
+        await SyncService.queueMutation('customers', 'INSERT', { name: customerName, phone: '', email: '', is_contractor: false, created_at: new Date().toISOString() });
+      }
+
       const validItems = items.filter(i => i.product_id).map(i => ({
         product_id: parseInt(i.product_id),
         product_name: i.product_name,
@@ -99,7 +137,7 @@ export default function Sales() {
       // Offline updates to Dexie
       await db.transaction('rw', db.sales, db.sale_items, db.products, db.journal_entries, async () => {
         const saleId = await db.sales.add({
-          customer_id: customerId ? parseInt(customerId) : null,
+          customer_id: resolvedCustomerId,
           customer_name: customerName,
           attendant_email: userEmail,
           total_amount: total,
@@ -158,7 +196,8 @@ export default function Sales() {
       setShowForm(false);
       setShowConfirm(false);
       setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
-      setAmountPaid(''); setPaymentMethod('Cash'); setNotes(''); setCustomerId(''); setCustomerName('Walk-in Customer');
+      setAmountPaid(''); setPaymentMethod('Cash'); setNotes('');
+      setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch('');
     } catch (err) {
       playSound('error');
       setError(err.message || 'Failed to record sale');
@@ -204,16 +243,32 @@ export default function Sales() {
           </div>
           <div style={{ padding:20 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
-              <div>
-                <label style={lbl}>Customer <InfoTip text="Select 'Walk-in' for quick cash sales or choose a registered customer to track debt." /></label>
-                <select style={inp} value={customerId} onChange={e => {
-                  setCustomerId(e.target.value);
-                  const c = customers.find(c => c.id === parseInt(e.target.value));
-                  setCustomerName(c ? c.name : 'Walk-in Customer');
-                }}>
-                  <option value="">Walk-in Customer</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name} {c.is_contractor ? '(Contractor)' : ''}</option>)}
-                </select>
+              <div style={{ position: 'relative' }}>
+                <label style={lbl}>Customer <InfoTip text="Type to search or add a new customer. Leave blank for Walk-in." /></label>
+                <input
+                  style={inp}
+                  value={customerSearch}
+                  onChange={handleCustomerInputChange}
+                  onFocus={() => setShowCustomerSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 150)}
+                  placeholder="Walk-in Customer (type to search/add)"
+                />
+                {showCustomerSuggestions && filteredCustomers.length > 0 && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:6, zIndex:100, maxHeight:160, overflowY:'auto', boxShadow:'0 4px 12px rgba(0,0,0,0.1)' }}>
+                    {filteredCustomers.map(c => (
+                      <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
+                        style={{ padding:'8px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
+                        onMouseEnter={e => e.target.style.background='#f9fafb'}
+                        onMouseLeave={e => e.target.style.background='#fff'}
+                      >
+                        {c.name} {c.is_contractor ? <span style={{fontSize:11, color:'#6b7280'}}>(Contractor)</span> : ''}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {customerSearch && !customerId && (
+                  <p style={{ fontSize:11, color:'#059669', marginTop:4 }}>✨ New customer "{customerSearch}" will be added automatically</p>
+                )}
               </div>
               <div>
                 <label style={lbl}>Notes <span style={{ fontWeight: 400, color: '#9ca3af' }}>(Optional)</span></label>

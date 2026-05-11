@@ -32,8 +32,8 @@ export default function Products() {
   const [sortBy, setSortBy] = useState('name');
 
   const handleCategoryChange = (cat) => {
-    const preset = UOM_PRESETS[cat] || UOM_PRESETS['General'];
-    setForm(f => ({ ...f, category: cat, buying_uom: preset.buying, selling_uom: preset.selling, conversion_factor: preset.factor }));
+    // Only update category — UOM fields are typed freely by the user
+    setForm(f => ({ ...f, category: cat }));
   };
 
   const handleSubmit = async (e) => {
