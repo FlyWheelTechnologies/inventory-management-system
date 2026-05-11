@@ -222,35 +222,57 @@ export default function Sales() {
           <div style={{ padding:20 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
               <div style={{ position: 'relative' }}>
-                <label style={lbl}>Customer <InfoTip text="Type to search or add a new customer. Leave blank for Walk-in." /></label>
-                <input
-                  style={inp}
-                  value={customerSearch}
-                  onChange={handleCustomerInputChange}
-                  onFocus={() => setShowCustomerSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 150)}
-                  placeholder="Walk-in Customer (type to search/add)"
-                />
-                {showCustomerSuggestions && filteredCustomers.length > 0 && (
-                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:6, zIndex:100, maxHeight:160, overflowY:'auto', boxShadow:'0 4px 12px rgba(0,0,0,0.1)' }}>
-                    {filteredCustomers.map(c => (
-                      <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
-                        style={{ padding:'8px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
-                        onMouseEnter={e => e.target.style.background='#f9fafb'}
-                        onMouseLeave={e => e.target.style.background='#fff'}
-                      >
-                        {c.name} {c.is_contractor ? <span style={{fontSize:11, color:'#6b7280'}}>(Contractor)</span> : ''}
+                <label style={lbl}>Customer Selection *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <input
+                      style={{ ...inp, border: customerId ? '1.5px solid #3b82f6' : '1px solid #ddd' }}
+                      value={customerSearch}
+                      onChange={handleCustomerInputChange}
+                      onFocus={() => setShowCustomerSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
+                      placeholder="Search existing or type new name..."
+                    />
+                    {showCustomerSuggestions && (
+                      <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
+                        <div 
+                          onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
+                          style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6', fontWeight:600, color:'#3b82f6' }}
+                        >
+                          👤 Generic Walk-in Customer
+                        </div>
+                        {filteredCustomers.map(c => (
+                          <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
+                            style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.target.style.background='#f3f4f6'}
+                            onMouseLeave={e => e.target.style.background='#fff'}
+                          >
+                            <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `(${c.phone})` : ''}
+                          </div>
+                        ))}
+                        {customerSearch.length > 0 && !customerId && !filteredCustomers.find(c => c.name.toLowerCase() === customerSearch.toLowerCase()) && (
+                          <div style={{ padding:'10px 12px', fontSize:12, color:'#059669', background:'#ecfdf5' }}>
+                            ✨ Add "{customerSearch}" as new customer
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-                {customerSearch && !customerId && (
-                  <p style={{ fontSize:11, color:'#059669', marginTop:4 }}>✨ New customer "{customerSearch}" will be added automatically</p>
-                )}
+                  <button 
+                    type="button" 
+                    onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
+                    style={{ padding: '0 12px', borderRadius: 6, border: '1px solid #ddd', background: !customerId && customerName === 'Walk-in Customer' ? '#f3f4f6' : '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Reset to Walk-in
+                  </button>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
+                  Current: <span style={{ color: '#111827' }}>{customerName}</span> {customerId && ' (Saved)'}
+                </div>
               </div>
               <div>
-                <label style={lbl}>Notes <span style={{ fontWeight: 400, color: '#9ca3af' }}>(Optional)</span></label>
-                <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Delivery instructions..." />
+                <label style={lbl}>Internal Notes</label>
+                <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / specific request..." />
               </div>
             </div>
 

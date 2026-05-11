@@ -36,8 +36,7 @@ export default function Customers() {
     setSaving(true);
 
     const payload = {
-      ...form,
-      updated_at: new Date().toISOString()
+      ...form
     };
     
     try {
