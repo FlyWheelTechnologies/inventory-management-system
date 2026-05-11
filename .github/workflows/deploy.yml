@@ -32,12 +32,11 @@ jobs:
       - name: Install and Build 🔧
         run: |
           cd client
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" > .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
           npm install
           npm run build
           cp dist/index.html dist/404.html
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Setup Pages 🛠️
         uses: actions/configure-pages@v4
