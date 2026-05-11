@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
       try {
         const { data: { session }, error } = await fetchWithTimeout(
           supabase.auth.getSession(),
-          5000
+          10000
         );
         
         if (error) throw error;

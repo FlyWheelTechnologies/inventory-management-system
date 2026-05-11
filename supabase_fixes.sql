@@ -197,3 +197,22 @@ USING (
   bucket_id = 'avatars' 
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+
+-- Create Debtors View for the UI
+CREATE OR REPLACE VIEW public.debtors AS
+SELECT 
+    c.id as customer_id,
+    c.name as customer_name,
+    c.phone,
+    SUM(s.total_amount - s.amount_paid) as total_debt,
+    MAX(s.created_at) as last_sale_date,
+    COUNT(s.id) as pending_sales_count
+FROM public.sales s
+JOIN public.customers c ON s.customer_id = c.id
+WHERE s.payment_status = 'pending'
+GROUP BY c.id, c.name, c.phone;
+
+-- Grant permissions for the view
+GRANT SELECT ON public.debtors TO authenticated;
+GRANT SELECT ON public.debtors TO anon;
+GRANT SELECT ON public.debtors TO service_role;

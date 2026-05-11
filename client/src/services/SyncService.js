@@ -84,31 +84,44 @@ export const SyncService = {
   async initialSyncFromSupabase(table) {
     if (!navigator.onLine) return;
 
-    const { data, error } = await supabase.from(table).select('*');
-    if (!error && data) {
-      // Clear existing local data that has been synced, or just use put to upsert
-      // Simple strategy: Clear local and refill, except for unsynced items.
-      const unsyncedIds = new Set((await db[table].where('sync_status').equals('pending').toArray()).map(x => x.supabase_id));
-      
-      const toUpsert = data.map(item => ({
-        ...item,
-        supabase_id: item.id,
-        sync_status: 'synced'
-      })).filter(item => !unsyncedIds.has(item.supabase_id));
+    try {
+      if (!db.isOpen()) await db.open();
 
-      if (toUpsert.length > 0) {
-        await db[table].bulkPut(toUpsert);
+      const { data, error } = await supabase.from(table).select('*');
+      if (!error && data) {
+        // Fetch pending items to avoid overwriting local-only data
+        const pendingItems = await db[table].where('sync_status').equals('pending').toArray();
+        const unsyncedIds = new Set(pendingItems.map(x => x.supabase_id));
+        
+        const toUpsert = data.map(item => ({
+          ...item,
+          supabase_id: item.id,
+          sync_status: 'synced'
+        })).filter(item => !unsyncedIds.has(item.supabase_id));
+
+        if (toUpsert.length > 0) {
+          await db[table].bulkPut(toUpsert);
+        }
       }
+    } catch (err) {
+      console.warn(`Sync failed for table ${table}:`, err);
     }
   },
 
   async syncAllTables() {
     if (!navigator.onLine) return;
     const tables = ['products', 'customers', 'sales', 'expenses', 'sale_items', 'journal_entries', 'logs'];
-    await Promise.all(tables.map(t => this.initialSyncFromSupabase(t)));
+    for (const table of tables) {
+      await this.initialSyncFromSupabase(table);
+    }
   },
 
   async getQueueCount() {
-    return await db.sync_queue.count();
+    try {
+      if (!db.isOpen()) await db.open();
+      return await db.sync_queue.count();
+    } catch (e) {
+      return 0;
+    }
   }
 };
