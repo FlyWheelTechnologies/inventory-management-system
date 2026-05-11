@@ -15,7 +15,12 @@ export default function JournalEntries() {
     const { data, error } = await supabase.rpc('get_daily_report');
     if (!error && data && data[0]) {
       const r = data[0];
-      setReport({ ...r, netCash: r.totalpaid - r.totalexpenses });
+      setReport({ 
+        totalsales: parseFloat(r.totalsales || 0),
+        totalpaid: parseFloat(r.totalpaid || 0),
+        totalexpenses: parseFloat(r.totalexpenses || 0),
+        netcash: parseFloat(r.totalpaid || 0) - parseFloat(r.totalexpenses || 0)
+      });
     }
   };
   const fetchJournal = async () => {
@@ -43,19 +48,19 @@ export default function JournalEntries() {
       <div className="kpi-row" style={{ marginBottom:24 }}>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Daily Sales</span></div>
-          <div className="stat-card__value">GHS {report.totalSales.toFixed(2)}</div>
+          <div className="stat-card__value">GHS {report.totalsales.toFixed(2)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Cash In</span></div>
-          <div className="stat-card__value" style={{color:'#059669'}}>GHS {report.totalPaid.toFixed(2)}</div>
+          <div className="stat-card__value" style={{color:'#059669'}}>GHS {report.totalpaid.toFixed(2)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Expenses</span></div>
-          <div className="stat-card__value" style={{color:'#ef4444'}}>GHS {report.totalExpenses.toFixed(2)}</div>
+          <div className="stat-card__value" style={{color:'#ef4444'}}>GHS {report.totalexpenses.toFixed(2)}</div>
         </div>
         <div className="stat-card" style={{borderLeft:'3px solid #2563eb'}}>
           <div className="stat-card__header"><span className="stat-card__label">Net Balance</span></div>
-          <div className="stat-card__value" style={{color: report.netCash >= 0 ? '#059669' : '#ef4444'}}>GHS {report.netCash.toFixed(2)}</div>
+          <div className="stat-card__value" style={{color: report.netcash >= 0 ? '#059669' : '#ef4444'}}>GHS {report.netcash.toFixed(2)}</div>
         </div>
       </div>
 

@@ -1,33 +1,73 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
 
-// Create context
 const AuthContext = createContext();
 
-// Provider component
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+  const fetchProfile = async (sessionUser) => {
+    if (!sessionUser) return null;
+    
+    // Fetch role and other info from our 'profiles' table
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionUser.id)
+      .single();
+
+    if (!error && data) {
+      return { ...sessionUser, ...data };
     }
-    setLoading(false);
+    
+    // Default if no profile found (safe fallback)
+    return { ...sessionUser, role: 'storekeeper' };
+  };
+
+  useEffect(() => {
+    // Check active session on mount
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const fullUser = await fetchProfile(session.user);
+        setUser(fullUser);
+        localStorage.setItem("user", JSON.stringify(fullUser));
+      } else {
+        setUser(null);
+        localStorage.removeItem("user");
+      }
+      setLoading(false);
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        const fullUser = await fetchProfile(session.user);
+        setUser(fullUser);
+        localStorage.setItem("user", JSON.stringify(fullUser));
+      } else {
+        setUser(null);
+        localStorage.removeItem("user");
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = (userData, token) => {
-    localStorage.setItem("user", JSON.stringify(userData));
+    // User state is handled by onAuthStateChange above,
+    // but we can set it here for immediate feedback if needed.
     localStorage.setItem("auth_token", token);
-    setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     setUser(null);
-    window.location.href = "/login";
   };
 
   const updateUser = (userData) => {
@@ -43,7 +83,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-// Custom hook
 export function useAuth() {
   return useContext(AuthContext);
 }

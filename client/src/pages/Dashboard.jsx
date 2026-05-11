@@ -78,7 +78,7 @@ export default function Dashboard() {
       startY: 40,
       head: [['Metric', 'Value']],
       body: [
-        ['Total Sales Today', `GHS ${todaySales.toFixed(2)}`],
+        ['Total Sales Today', `GHS ${todayRevenue.toFixed(2)}`],
         ['Total Stock Value', `GHS ${stockValue.toFixed(2)}`],
         ['Low Stock Count', `${lowStockCount} Items`],
       ],
@@ -101,8 +101,8 @@ export default function Dashboard() {
     return "Good Evening";
   };
 
-  const todayCashIn = report ? report.totalPaid : 0;
-  const todayRevenue = report ? report.totalSales : 0;
+  const todayCashIn = report ? parseFloat(report.totalpaid || 0) : 0;
+  const todayRevenue = report ? parseFloat(report.totalsales || 0) : 0;
   const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * parseFloat(p.stock_quantity || 0)), 0);
   const lowStockCount = products.filter(p => p.stock_quantity < 10).length;
 

@@ -30,7 +30,9 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { data, error } = await supabase.auth.updateProfile({ full_name: name, avatar_url: avatar });
+    const { data, error } = await supabase.auth.updateUser({ 
+      data: { full_name: name, avatar_url: avatar } 
+    });
     setLoading(false);
     if (!error) {
       updateUser(data);
