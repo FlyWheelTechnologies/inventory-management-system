@@ -3,11 +3,8 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
-import { SyncService } from "./services/SyncService";
-
 window.addEventListener('online', () => {
-  console.log('App is back online! Syncing queue...');
-  SyncService.syncQueueToSupabase();
+  console.log('App is back online!');
 });
 
 ReactDOM.createRoot(document.getElementById("root")).render(

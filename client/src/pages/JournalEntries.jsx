@@ -1,7 +1,5 @@
-import { useState, useRef } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../services/db";
-import { ReportService } from "../services/ReportService";
+import { useState, useRef, useEffect } from "react";
+import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
 
 export default function JournalEntries() {
@@ -11,20 +9,34 @@ export default function JournalEntries() {
   const itemsPerPage = 10;
   const printRef = useRef();
 
-  const journal = useLiveQuery(() => db.journal_entries.reverse().sortBy('created_at'), []) || [];
-  const sales = useLiveQuery(() => db.sales.toArray(), []) || [];
-  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
+  const [journal, setJournal] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+
+  const fetchData = async () => {
+    const [journalRes, salesRes, expensesRes] = await Promise.all([
+      supabase.from('journal_entries').select('*').order('created_at', { ascending: false }),
+      supabase.from('sales').select('*'),
+      supabase.from('expenses').select('*')
+    ]);
+    if (journalRes.data) setJournal(journalRes.data);
+    if (salesRes.data) setSales(salesRes.data);
+    if (expensesRes.data) setExpenses(expensesRes.data);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
   
   // Filter data based on selected date
   const filteredSales = sales.filter(s => s.created_at.startsWith(selectedDate));
   const filteredExpenses = expenses.filter(e => e.created_at.startsWith(selectedDate));
   
-  const summary = ReportService.calculateDailySummary(journal, selectedDate);
   const report = {
-    totalsales: summary.sales,
-    totalpaid: summary.cashIn,
-    totalexpenses: summary.expenses,
-    netcash: summary.net
+    totalsales: filteredSales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0),
+    totalpaid: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
+    totalexpenses: filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0),
+    netcash: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0) - filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0)
   };
 
   const filteredJournal = journal.filter(j => 

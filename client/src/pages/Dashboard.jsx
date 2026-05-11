@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../services/db";
+import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
@@ -32,10 +31,30 @@ function StatCard({ icon, label, value, trend, accent, children }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const products = useLiveQuery(() => db.products.toArray(), []) || [];
-  const sales = useLiveQuery(() => db.sales.toArray(), []) || [];
-  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
-  const logs = useLiveQuery(() => db.logs.toArray(), []) || [];
+  const [products, setProducts] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!navigator.onLine) return; // Silent fail if offline, though PWA won't load properly without data
+      
+      const [productsRes, salesRes, expensesRes, logsRes] = await Promise.all([
+        supabase.from('products').select('*'),
+        supabase.from('sales').select('*'),
+        supabase.from('expenses').select('*'),
+        supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(50)
+      ]);
+
+      if (productsRes.data) setProducts(productsRes.data);
+      if (salesRes.data) setSales(salesRes.data);
+      if (expensesRes.data) setExpenses(expensesRes.data);
+      if (logsRes.data) setLogs(logsRes.data);
+    };
+    
+    fetchData();
+  }, []);
   const [showAudit, setShowAudit] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 

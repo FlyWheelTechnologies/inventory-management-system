@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../services/db";
-import { SyncService } from "../services/SyncService";
+import { useState, useEffect } from "react";
+import { supabase } from "../services/supabaseClient";
 import ConfirmationModal from "../components/ConfirmationModal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -20,9 +18,24 @@ const InfoTip = ({ text }) => (
 );
 
 export default function Sales() {
-  const sales = useLiveQuery(() => db.sales.reverse().sortBy('created_at'), []) || [];
-  const products = useLiveQuery(() => db.products.toArray(), []) || [];
-  const customers = useLiveQuery(() => db.customers.toArray(), []) || [];
+  const [sales, setSales] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [customers, setCustomers] = useState([]);
+
+  const fetchData = async () => {
+    const [salesRes, productsRes, customersRes] = await Promise.all([
+      supabase.from('sales').select('*').order('created_at', { ascending: false }),
+      supabase.from('products').select('*'),
+      supabase.from('customers').select('*')
+    ]);
+    if (salesRes.data) setSales(salesRes.data);
+    if (productsRes.data) setProducts(productsRes.data);
+    if (customersRes.data) setCustomers(customersRes.data);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +74,7 @@ export default function Sales() {
   // fetchAll not needed since useLiveQuery handles it automatically
 
   const generateReceipt = async (sale) => {
-    const saleItems = await db.sale_items.where('sale_id').equals(sale.id).toArray();
+    const { data: saleItems } = await supabase.from('sale_items').select('*').eq('sale_id', sale.id);
 
     const doc = new jsPDF({ format: [80, 150] }); // POS width 80mm
     doc.setFontSize(12);
@@ -106,28 +119,27 @@ export default function Sales() {
     const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
 
     try {
-      // Auto-add new customer if a name was typed that doesn't exist yet
       let resolvedCustomerId = customerId ? parseInt(customerId) : null;
       const isNewCustomer = customerName && customerName !== 'Walk-in Customer' && !customerId;
+      
       if (isNewCustomer) {
-        resolvedCustomerId = await db.customers.add({
+        // Create customer directly in Supabase
+        const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
           name: customerName,
           phone: '',
           email: '',
-          is_contractor: 0,
-          created_at: new Date().toISOString(),
-          supabase_id: crypto.randomUUID(),
-          sync_status: 'pending'
-        });
-        // Queue sync to Supabase
-        await SyncService.queueMutation('customers', 'INSERT', { name: customerName, phone: '', email: '', is_contractor: false, created_at: new Date().toISOString() });
+          is_contractor: false,
+          created_at: new Date().toISOString()
+        }]).select().single();
+        
+        if (custErr) throw custErr;
+        resolvedCustomerId = newCust.id;
       }
 
       const validItems = items.filter(i => i.product_id).map(i => {
-        const prod = products.find(p => p.id === parseInt(i.product_id));
+        const prod = products.find(p => p.id === parseInt(i.product_id) || p.id === i.product_id); // Handle UUID or Int
         return {
-          product_id: parseInt(i.product_id),
-          supabase_product_id: prod?.supabase_id,
+          product_id: prod.id,
           product_name: i.product_name,
           quantity: parseFloat(i.quantity),
           unit_price: parseFloat(i.unit_price),
@@ -136,85 +148,21 @@ export default function Sales() {
       });
 
       const payloadAmountPaid = parseFloat(amountPaid) || 0;
-      // Deposit: customer pays in advance — status is DEPOSIT regardless of balance
-      // Normal: PAID if balance<=0, PARTIAL if some paid, else unpaid
       const status = isDeposit ? 'DEPOSIT' : (balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'UNPAID');
-      const created_at = new Date().toISOString();
-      const supabase_id = crypto.randomUUID();
 
-      // Offline updates to Dexie
-      await db.transaction('rw', db.sales, db.sale_items, db.products, db.journal_entries, async () => {
-        const saleId = await db.sales.add({
-          customer_id: resolvedCustomerId,
-          customer_name: customerName,
-          attendant_email: userEmail,
-          total_amount: total,
-          amount_paid: payloadAmountPaid,
-          balance_due: balance,
-          payment_status: status,
-          payment_method: paymentMethod,
-          notes: notes,
-          created_at,
-          supabase_id,
-          sync_status: 'synced' // We will queue the RPC instead, so local records don't need independent sync
-        });
-
-        for (const item of validItems) {
-          await db.sale_items.add({
-            sale_id: saleId,
-            ...item,
-            supabase_id: crypto.randomUUID(),
-            sync_status: 'synced'
-          });
-          const product = await db.products.get(item.product_id);
-          if (product) {
-            await db.products.update(product.id, { stock_quantity: product.stock_quantity - item.quantity });
-          }
-        }
-        
-        // ── Journal Entries (Double-Entry Accounting) ───────────────
-        if (isDeposit) {
-          // DEPOSIT accounting:
-          // DR Cash/Momo (money received)
-          // CR Customer Deposits (liability — we owe the customer the goods)
-          if (payloadAmountPaid > 0) {
-            await db.journal_entries.add({ sale_id: saleId, account_type: paymentMethod.toUpperCase(), debit: payloadAmountPaid, credit: 0, description: `Deposit received from ${customerName}`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
-            await db.journal_entries.add({ sale_id: saleId, account_type: 'CUSTOMER_DEPOSITS', debit: 0, credit: payloadAmountPaid, description: `Advance deposit — Order pending fulfillment`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
-          }
-        } else {
-          // NORMAL SALE accounting:
-          // DR Cash (amount paid) → CR Revenue
-          // DR Accounts Receivable (balance owed) → CR Revenue
-          if (payloadAmountPaid > 0) {
-            await db.journal_entries.add({ sale_id: saleId, account_type: paymentMethod.toUpperCase(), debit: payloadAmountPaid, credit: 0, description: `${paymentMethod} received`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
-          }
-          await db.journal_entries.add({ sale_id: saleId, account_type: 'REVENUE', debit: 0, credit: total, description: `Revenue from sale`, created_at, supabase_id: crypto.randomUUID(), sync_status: 'synced' });
-        }
+      // Call Supabase RPC directly
+      const { error: rpcError } = await supabase.rpc('record_sale_transaction', {
+        p_customer_id: resolvedCustomerId,
+        p_customer_name: customerName,
+        p_total_amount: total,
+        p_amount_paid: payloadAmountPaid,
+        p_payment_method: paymentMethod,
+        p_payment_status: status,
+        p_items: validItems,
+        p_recorded_by: userEmail
       });
 
-      // Queue RPC for Supabase
-      await db.sync_queue.add({
-        table: 'record_sale_transaction', // used as RPC name
-        operation: 'RPC',
-        payload: {
-          p_customer_id: resolvedCustomerId,
-          p_customer_name: customerName,
-          p_total_amount: total,
-          p_amount_paid: payloadAmountPaid,
-          p_payment_method: paymentMethod,
-          p_payment_status: status,
-          p_items: validItems.map(i => ({
-            product_id: i.supabase_product_id,
-            product_name: i.product_name,
-            quantity: i.quantity,
-            unit_price: i.unit_price,
-            subtotal: i.subtotal
-          })),
-          p_recorded_by: userEmail
-        },
-        created_at
-      });
-      if (navigator.onLine) SyncService.syncQueueToSupabase();
+      if (rpcError) throw rpcError;
 
       setShowForm(false);
       setShowConfirm(false);
@@ -222,7 +170,9 @@ export default function Sales() {
       setAmountPaid(''); setPaymentMethod('Cash'); setNotes('');
       setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch('');
       setIsDeposit(false);
+      fetchData(); // Refresh UI
     } catch (err) {
+      console.error(err);
       setError(err.message || 'Failed to record sale');
     }
   };
@@ -310,7 +260,7 @@ export default function Sales() {
                         const newItems = [...items];
                         const val = e.target.value;
                         newItems[idx].product_id = val;
-                        const prod = products.find(p => p.id === parseInt(val));
+                        const prod = products.find(p => p.id === parseInt(val) || p.id === val);
                         if (prod) { newItems[idx].product_name = prod.name; newItems[idx].unit_price = prod.selling_price; }
                         setItems(newItems);
                       }}>

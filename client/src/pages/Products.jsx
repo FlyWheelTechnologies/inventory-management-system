@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../services/db";
-import { SyncService } from "../services/SyncService";
+import { useState, useEffect } from "react";
+import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
@@ -21,7 +19,16 @@ const emptyForm = { name:'', category:'General', buying_uom:'Piece', selling_uom
 export default function Products() {
   const { user } = useAuth();
   const isAuditor = user?.role === 'auditor';
-  const products = useLiveQuery(() => db.products.toArray(), []) || [];
+  const [products, setProducts] = useState([]);
+
+  const fetchProducts = async () => {
+    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (data) setProducts(data);
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
   const [form, setForm] = useState({...emptyForm});
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -44,18 +51,16 @@ export default function Products() {
     };
     
     if (editingId) {
-      // Find the local item to get supabase_id if we want to sync updates properly
-      // For now, assume SyncService handles UPDATE correctly if we implement it.
-      // Since SyncService only has INSERT, we will just use db update for offline:
-      await db.products.update(editingId, payload);
-      await SyncService.queueMutation("products", "UPDATE", { ...payload, id: editingId });
+      await supabase.from('products').update(payload).eq('id', editingId);
       setEditingId(null);
     } else {
       payload.created_at = new Date().toISOString();
-      await SyncService.queueMutation("products", "INSERT", payload);
+      await supabase.from('products').insert([payload]);
     }
+    
     setForm({...emptyForm});
     setShowForm(false);
+    fetchProducts();
   };
 
   const startEdit = (p) => {
@@ -72,10 +77,10 @@ export default function Products() {
 
   const handleDelete = async () => {
     if (productToDelete) {
-      await db.products.delete(productToDelete.id);
-      await SyncService.queueMutation("products", "DELETE", { supabase_id: productToDelete.supabase_id });
+      await supabase.from('products').delete().eq('id', productToDelete.id);
       setShowConfirm(false);
       setProductToDelete(null);
+      fetchProducts();
     }
   };
 
@@ -98,16 +103,17 @@ export default function Products() {
       for (const line of lines) {
         const [,name,category,buying_uom,selling_uom,conversion_factor,cost_price,selling_price,stock_quantity] = line.split(",");
         if (!name) continue;
-        await SyncService.queueMutation("products", "INSERT", {
+        await supabase.from('products').insert([{
           name,category,buying_uom,selling_uom,
           conversion_factor: parseFloat(conversion_factor),
           cost_price: parseFloat(cost_price),
           selling_price: parseFloat(selling_price),
           stock_quantity: parseFloat(stock_quantity),
           created_at: new Date().toISOString()
-        });
+        }]);
         count++;
       }
+      fetchProducts();
       alert(`Imported ${count} products`);
     };
     reader.readAsText(file);

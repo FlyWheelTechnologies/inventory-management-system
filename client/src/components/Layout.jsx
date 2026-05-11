@@ -5,7 +5,6 @@ import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import OfflineBanner from "./OfflineBanner";
 import InstallPWA from "./InstallPWA";
-import { SyncService } from "../services/SyncService";
 import "../pages/Dashboard.css";
 
 const AVATAR_PRESETS = [
@@ -204,12 +203,6 @@ export default function Layout({ children }) {
   }, []);
 
   const handleLogout = async () => {
-    const queueCount = await SyncService.getQueueCount();
-    if (queueCount > 0) {
-      alert(`Cannot logout: You have ${queueCount} pending offline changes. Please connect to the internet to sync your data before logging out to prevent data loss.`);
-      return;
-    }
-    
     await logout();
   };
 

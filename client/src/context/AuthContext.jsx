@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
-import { SyncService } from "../services/SyncService";
 
 const AuthContext = createContext();
 
@@ -54,10 +53,6 @@ export function AuthProvider({ children }) {
           fetchProfile(session.user).then(fullUser => {
             if (isMounted) setUser(fullUser);
           });
-          
-          if (navigator.onLine) {
-            SyncService.syncAllTables();
-          }
         } else if (isMounted) {
           setUser(null);
           localStorage.removeItem("user");
@@ -103,16 +98,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
-    
-    try {
-      // Try to clear local DB but don't let it hang the logout
-      const m = await import('../services/db');
-      await m.db.delete();
-    } catch (err) {
-      console.warn("DB deletion error during logout:", err);
-    } finally {
-      window.location.href = "/"; // Force reload to login
-    }
+    window.location.href = "/"; // Force reload to login
   };
 
   const updateUser = (userData) => {

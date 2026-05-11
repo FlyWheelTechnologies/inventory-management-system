@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../services/db";
-import { SyncService } from "../services/SyncService";
+import { useState, useEffect } from "react";
+import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
@@ -11,7 +9,16 @@ const emptyForm = { name: '', phone: '', email: '', address: '', is_contractor: 
 export default function Customers() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const customers = useLiveQuery(() => db.customers.toArray(), []) || [];
+  const [customers, setCustomers] = useState([]);
+
+  const fetchCustomers = async () => {
+    const { data } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
+    if (data) setCustomers(data);
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState(null);
@@ -30,16 +37,15 @@ export default function Customers() {
     };
     
     if (editingId) {
-      await db.customers.update(editingId, payload);
-      const localItem = await db.customers.get(editingId);
-      await SyncService.queueMutation("customers", "UPDATE", { ...payload, supabase_id: localItem.supabase_id });
+      await supabase.from('customers').update(payload).eq('id', editingId);
       setEditingId(null);
     } else {
       payload.created_at = new Date().toISOString();
-      await SyncService.queueMutation("customers", "INSERT", payload);
+      await supabase.from('customers').insert([payload]);
     }
     setForm({ ...emptyForm });
     setShowForm(false);
+    fetchCustomers();
   };
 
   const startEdit = (c) => {
@@ -56,17 +62,17 @@ export default function Customers() {
 
   const handleDelete = async () => {
     if (customerToDelete) {
-      await db.customers.delete(customerToDelete.id);
-      await SyncService.queueMutation("customers", "DELETE", { supabase_id: customerToDelete.supabase_id });
+      await supabase.from('customers').delete().eq('id', customerToDelete.id);
       setShowConfirm(false);
       setCustomerToDelete(null);
       if (selectedCustomer?.id === customerToDelete.id) setSelectedCustomer(null);
+      fetchCustomers();
     }
   };
 
   const viewHistory = async (customer) => {
     setSelectedCustomer(customer);
-    const data = await db.sales.where('customer_id').equals(customer.id).reverse().sortBy('created_at');
+    const { data } = await supabase.from('sales').select('*').eq('customer_id', customer.id).order('created_at', { ascending: false });
     setHistory(data || []);
   };
 
