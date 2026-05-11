@@ -166,17 +166,19 @@ export default function Dashboard() {
           <div className="table-card" style={{ padding: 20, minHeight: 350, overflow: 'hidden' }}>
             <h3 className="table-card__title" style={{ marginBottom: 20 }}>Revenue vs Expenses (Last 7 Days)</h3>
             <div className="chart-container" style={{ height: 350, width: '100%', minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%" minHeight={350} minWidth={0}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
-                  <ChartTooltip cursor={{fill: '#f8faff'}} contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: 20 }} />
-                  <Bar dataKey="Revenue" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} barSize={30} />
-                  <Bar dataKey="Expenses" fill="var(--brand-secondary)" radius={[4, 4, 0, 0]} barSize={30} />
-                </BarChart>
-              </ResponsiveContainer>
+              {chartData && chartData.length > 0 && (
+                <ResponsiveContainer width="100%" height="100%" minHeight={350} minWidth={0}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                    <ChartTooltip cursor={{fill: '#f8faff'}} contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: 20 }} />
+                    <Bar dataKey="Revenue" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} barSize={30} />
+                    <Bar dataKey="Expenses" fill="var(--brand-secondary)" radius={[4, 4, 0, 0]} barSize={30} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         ) : (

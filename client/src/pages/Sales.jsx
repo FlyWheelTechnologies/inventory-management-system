@@ -8,8 +8,9 @@ import 'jspdf-autotable';
 import "./Dashboard.css";
 
 const playSound = (type) => {
-  const audio = new Audio(type === 'success' ? '/sounds/success.mp3' : '/sounds/error.mp3');
-  audio.play().catch(() => {}); // Ignore if audio is blocked
+  // Sounds currently disabled as files are missing
+  // const audio = new Audio(type === 'success' ? '/sounds/success.mp3' : '/sounds/error.mp3');
+  // audio.play().catch(() => {});
 };
 
 const InfoTip = ({ text }) => (
@@ -215,7 +216,6 @@ export default function Sales() {
       });
       if (navigator.onLine) SyncService.syncQueueToSupabase();
 
-      playSound('success');
       setShowForm(false);
       setShowConfirm(false);
       setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
@@ -223,7 +223,6 @@ export default function Sales() {
       setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch('');
       setIsDeposit(false);
     } catch (err) {
-      playSound('error');
       setError(err.message || 'Failed to record sale');
     }
   };
