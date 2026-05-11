@@ -8,31 +8,41 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchWithTimeout = (promise, ms) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
+    ]);
+  };
+
   const fetchProfile = async (sessionUser) => {
     if (!sessionUser) return null;
-    
-    // Fetch role and other info from our 'profiles' table
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', sessionUser.id)
-      .maybeSingle();
-
-    if (!error && data) {
-      return { ...sessionUser, ...data };
+    try {
+      const { data, error } = await fetchWithTimeout(
+        supabase.from('profiles').select('*').eq('id', sessionUser.id).maybeSingle(),
+        5000
+      );
+      if (!error && data) return { ...sessionUser, ...data };
+    } catch (e) {
+      console.warn("Profile fetch failed or timed out:", e);
     }
-    
-    // Default if no profile found (safe fallback)
     return { ...sessionUser, role: 'storekeeper' };
   };
 
   useEffect(() => {
-    // Check active session on mount
+    let isMounted = true;
+
     const checkSession = async () => {
       console.log("Checking session...");
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+        const { data: { session }, error } = await fetchWithTimeout(
+          supabase.auth.getSession(),
+          5000
+        );
+        
+        if (error) throw error;
+
+        if (session && isMounted) {
           console.log("Session found, fetching profile...");
           const fullUser = await fetchProfile(session.user);
           setUser(fullUser);
@@ -40,16 +50,22 @@ export function AuthProvider({ children }) {
           if (navigator.onLine) {
             SyncService.syncAllTables();
           }
-        } else {
+        } else if (isMounted) {
           console.log("No session found.");
           setUser(null);
           localStorage.removeItem("user");
         }
       } catch (err) {
         console.error("Auth initialization error:", err);
+        if (isMounted) {
+          setUser(null);
+          localStorage.removeItem("user");
+        }
       } finally {
-        console.log("Auth loading complete.");
-        setLoading(false);
+        if (isMounted) {
+          console.log("Auth loading complete.");
+          setLoading(false);
+        }
       }
     };
 
