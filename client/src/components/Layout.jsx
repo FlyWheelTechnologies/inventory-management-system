@@ -73,8 +73,10 @@ const ProfileModal = ({ isOpen, onClose }) => {
     // 1. Update public 'profiles' table FIRST (Fastest)
     const profileUpdate = { 
       id: user.id, 
+      email: user.email,
       full_name: name, 
       avatar_url: avatar,
+      role: user.role,
       updated_at: new Date().toISOString()
     };
 
