@@ -21,7 +21,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: 'Flywheel IMS <notifications@yourdomain.com>', // ← replace with your verified Resend domain
+      from: 'Flywheel IMS <onboarding@resend.dev>', // ← Use verified domain here later
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
