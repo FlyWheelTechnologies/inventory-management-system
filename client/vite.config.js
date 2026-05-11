@@ -11,22 +11,20 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.png', 'logo.png'],
       manifest: {
         name: 'Flywheel Inventory Management',
         short_name: 'Flywheel',
         description: 'Offline-first inventory management system',
-        theme_color: '#ffffff',
+        theme_color: '#2563eb',
+        background_color: '#ffffff',
+        display: 'standalone',
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            src: 'logo.png',
+            sizes: '192x192 512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
