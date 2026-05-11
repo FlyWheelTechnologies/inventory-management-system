@@ -25,13 +25,20 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await fetchWithTimeout(
         supabase.from('profiles').select('*').eq('id', sessionUser.id).maybeSingle(),
-        8000
+        15000
       );
-      if (!error && data) return { ...sessionUser, ...data };
-    } catch (e) {
-      console.warn("Profile fetch failed or timed out. Using fallback role:", defaultRole);
+      if (error) {
+        console.error("Profile fetch error:", error.message);
+        const cachedRole = localStorage.getItem("user_role") || "admin";
+        console.log(`Using fallback role: ${cachedRole}`);
+        return { ...sessionUser, role: cachedRole };
+      }
+      return { ...sessionUser, ...data };
+    } catch (err) {
+      console.error("Profile fetch timed out or crashed:", err.message);
+      const cachedRole = localStorage.getItem("user_role") || "admin";
+      return { ...sessionUser, role: cachedRole };
     }
-    return { ...sessionUser, role: defaultRole };
   };
 
   useEffect(() => {
