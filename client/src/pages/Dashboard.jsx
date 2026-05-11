@@ -105,13 +105,16 @@ export default function Dashboard() {
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <h2 className="section-title">
-            {getGreeting()}, <span style={{ color: '#2563eb' }}>{userName}</span>
-          </h2>
-          <p style={{ color: '#6b7280', fontSize: '13px' }}>
-            It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <img src="/logo.png" alt="Flywheel Logo" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+          <div>
+            <h2 className="section-title">
+              {getGreeting()}, <span style={{ color: '#2563eb' }}>{userName}</span>
+            </h2>
+            <p style={{ color: '#6b7280', fontSize: '13px' }}>
+              It is currently {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {user?.role !== 'auditor' && (
