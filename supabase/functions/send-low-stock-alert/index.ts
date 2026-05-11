@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
         <div style="background: ${urgencyColor}; padding: 24px 28px; text-align: center;">
           <p style="color: #fff; font-size: 28px; margin: 0;">⚠️</p>
           <h1 style="color: #fff; margin: 8px 0 0; font-size: 20px;">${urgency} ALERT</h1>
-          <p style="color: rgba(255,255,255,0.85); margin: 4px 0 0; font-size: 13px;">Flywheel IMS — Inventory Warning</p>
+          <p style="color: rgba(255,255,255,0.85); margin: 4px 0 0; font-size: 13px;">FlorzyAngel Enterprise — Inventory Warning</p>
         </div>
 
         <!-- Body -->
@@ -105,17 +105,19 @@ Deno.serve(async (req: Request) => {
 
         <!-- Footer -->
         <div style="background: #f9fafb; padding: 16px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="font-size: 12px; color: #9ca3af; margin: 0;">Automated alert from Flywheel IMS</p>
+          <p style="font-size: 12px; color: #9ca3af; margin: 0;">Automated alert from FlorzyAngel Enterprise</p>
+          <p style="font-size: 10px; color: #d1d5db; margin: 4px 0 0;">Powered by bookflywheel.com</p>
         </div>
       </div>
     `;
 
     // Send to all admins
+    const appUrl = Deno.env.get('APP_URL') || 'https://ims.bookflywheel.com';
     for (const admin of admins) {
       if (admin.email) {
         await sendEmail({
           to: admin.email,
-          subject: `${urgency}: ${record.name} — Flywheel IMS`,
+          subject: `${urgency}: ${record.name} — FlorzyAngel Enterprise`,
           html,
         });
       }

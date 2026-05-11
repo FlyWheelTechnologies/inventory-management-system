@@ -119,8 +119,8 @@ Deno.serve(async (req: Request) => {
     await sendEmail({
       to: customer.email,
       subject: isDeposit
-        ? `Deposit Confirmation #${record.id.slice(0, 8).toUpperCase()} — Flywheel`
-        : `Receipt #${record.id.slice(0, 8).toUpperCase()} — Flywheel`,
+        ? `Deposit Confirmation #${record.id.slice(0, 8).toUpperCase()} — FlorzyAngel Enterprise`
+        : `Receipt #${record.id.slice(0, 8).toUpperCase()} — FlorzyAngel Enterprise`,
       html,
     });
 

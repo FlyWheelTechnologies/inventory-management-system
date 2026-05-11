@@ -12,30 +12,44 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    console.log("Invite request received for:", email);
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Missing Supabase environment variables.");
+    }
 
-    const { email, password, role, full_name } = await req.json()
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+    const { email, password, role, full_name } = await req.json();
 
     // 1. Create the user in Auth
+    console.log("Creating auth user...");
     const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: { full_name }
-    })
+    });
 
-    if (authError) throw authError
+    if (authError) {
+      console.error("Auth error:", authError);
+      throw authError;
+    }
 
-    // 2. Update the profile with the chosen role (trigger handles creation, we update role)
+    // 2. Update the profile
+    console.log("Updating profile for user:", authData.user.id);
     const { error: profileError } = await supabaseClient
       .from('profiles')
       .update({ role, full_name })
-      .eq('id', authData.user.id)
+      .eq('id', authData.user.id);
 
-    if (profileError) throw profileError
+    if (profileError) {
+      console.error("Profile error:", profileError);
+      throw profileError;
+    }
 
     // 3. Log the action
     await supabaseClient.from('logs').insert({
@@ -43,12 +57,14 @@ Deno.serve(async (req: Request) => {
       user_role: 'admin',
       action: 'USER_INVITE',
       details: `Created new user ${email} with role ${role}`
-    })
+    });
 
     // 4. Send Welcome Email
+    console.log("Sending email via Resend...");
+    const appUrl = Deno.env.get('APP_URL') || 'https://ims.bookflywheel.com';
     await sendEmail({
       to: email,
-      subject: 'Welcome to Flywheel IMS',
+      subject: `Welcome to ${full_name || 'FlorzyAngel'}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
           <h1 style="color: #f97316;">FlorzyAngel Enterprise</h1>
@@ -59,20 +75,21 @@ Deno.serve(async (req: Request) => {
             <p style="margin: 8px 0 0;"><strong>Login Email:</strong> ${email}</p>
           </div>
           <p>You can now log in using your email and the password provided by your administrator.</p>
-          <a href="${Deno.env.get('APP_URL') ?? '#'}" style="display: inline-block; background: #374151; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In Now</a>
+          <a href="${appUrl}" style="display: inline-block; background: #374151; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In Now</a>
           <p style="margin-top: 30px; font-size: 11px; color: #9ca3af; text-align: center;">Powered by bookflywheel.com</p>
         </div>
       `
-    })
+    });
 
     return new Response(
       JSON.stringify({ message: 'User created successfully', user: authData.user }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+    );
   } catch (error: any) {
+    console.error("Edge Function Error:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    )
+    );
   }
 })
