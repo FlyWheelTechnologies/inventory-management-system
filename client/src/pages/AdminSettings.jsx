@@ -20,11 +20,12 @@ export default function AdminSettings() {
   }, [currentUser]);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (!error && data) {
+    const { data, error: fetchError } = await supabase.from('profiles').select('*');
+    if (fetchError) {
+      console.error("Error fetching users:", fetchError);
+      setError("Permission denied or connection issue: " + fetchError.message);
+    } else if (data) {
       setUsers(data);
-    } else {
-      console.error("Error fetching users:", error);
     }
   };
 

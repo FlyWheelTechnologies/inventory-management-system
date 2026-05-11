@@ -30,7 +30,10 @@ export default function Logs() {
       .order('created_at', { ascending: false })
       .limit(100);
     
-    if (!error && data) {
+    if (error) {
+      console.error("Error fetching logs:", error.message);
+      // Optional: show a small inline error or alert
+    } else if (data) {
       setLogs(data);
     }
     setLoading(false);
