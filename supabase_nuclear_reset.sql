@@ -5,7 +5,7 @@
 -- ============================================================
 
 -- ── 1. DROP EVERYTHING ──────────────────────────────────────
-DROP VIEW  IF EXISTS public.debtors;
+DROP VIEW  IF EXISTS public.deposits;
 DROP TABLE IF EXISTS public.sale_items    CASCADE;
 DROP TABLE IF EXISTS public.sales         CASCADE;
 DROP TABLE IF EXISTS public.expenses      CASCADE;
@@ -182,7 +182,7 @@ CREATE POLICY "logs_insert" ON public.logs FOR INSERT TO authenticated WITH CHEC
 
 -- ── 11. DEPOSITS VIEW (replaces Debtors) ────────────────────
 -- Shows customers with DEPOSIT status (paid in advance, awaiting fulfillment)
-CREATE VIEW public.debtors
+CREATE VIEW public.deposits
 WITH (security_invoker = true) AS
 SELECT
   c.id            AS customer_id,
@@ -196,7 +196,7 @@ JOIN public.customers c ON s.customer_id = c.id
 WHERE s.payment_status = 'DEPOSIT'
 GROUP BY c.id, c.name, c.phone;
 
-GRANT SELECT ON public.debtors TO authenticated;
+GRANT SELECT ON public.deposits TO authenticated;
 
 -- ── 12. RECORD SALE RPC ─────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.record_sale_transaction(

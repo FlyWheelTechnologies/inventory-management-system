@@ -29,7 +29,7 @@ const NAV_ITEMS = [
     children: [
       { id: "daily-report", label: "Entries", path: "/reports/daily", roles: ['admin', 'auditor'] },
       { id: "expenses", label: "Expenses", path: "/expenses", roles: ['admin', 'auditor'] },
-      { id: "deposits", label: "Deposits", path: "/debtors" },
+      { id: "deposits", label: "Deposits", path: "/deposits" },
     ],
   },
   {

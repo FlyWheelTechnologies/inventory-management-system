@@ -47,20 +47,31 @@ export default function Products() {
     e.preventDefault();
     const payload = {
       ...form,
+      cost_price: parseFloat(form.cost_price) || 0,
+      selling_price: parseFloat(form.selling_price) || 0,
+      stock_quantity: parseFloat(form.stock_quantity) || 0,
+      conversion_factor: parseFloat(form.conversion_factor) || 1,
+      low_stock_threshold: parseInt(form.low_stock_threshold) || 10,
       updated_at: new Date().toISOString()
     };
     
-    if (editingId) {
-      await supabase.from('products').update(payload).eq('id', editingId);
-      setEditingId(null);
-    } else {
-      payload.created_at = new Date().toISOString();
-      await supabase.from('products').insert([payload]);
+    try {
+      if (editingId) {
+        const { error } = await supabase.from('products').update(payload).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        payload.created_at = new Date().toISOString();
+        const { error } = await supabase.from('products').insert([payload]);
+        if (error) throw error;
+      }
+      
+      setForm({...emptyForm});
+      setShowForm(false);
+      fetchProducts();
+    } catch (err) {
+      console.error("Product save error:", err);
+      alert("Failed to save product: " + (err.message || "Unknown error"));
     }
-    
-    setForm({...emptyForm});
-    setShowForm(false);
-    fetchProducts();
   };
 
   const startEdit = (p) => {

@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
 
-export default function Debtors() {
+export default function Deposits() {
   const [deposits, setDeposits] = useState([]);
 
   useEffect(() => { fetchDeposits(); }, []);
 
   const fetchDeposits = async () => {
-    const { data } = await supabase.from("debtors").select("*");
+    const { data, error } = await supabase.from("deposits").select("*");
+    if (error) console.error("Error fetching deposits:", error.message);
     setDeposits(data || []);
   };
 
@@ -30,7 +31,7 @@ export default function Debtors() {
       <div className="table-card">
         <div className="table-wrapper">
           <table className="stock-table">
-            <thead><tr><th>Customer Name</th><th>Phone</th><th>Pending Count</th><th>Last Payment</th><th>Balance Due / Held</th></tr></thead>
+            <thead><tr><th>Customer Name</th><th>Phone</th><th>Pending Count</th><th>Last Payment</th><th>Amount Held</th></tr></thead>
             <tbody>
               {deposits.length === 0 ? (
                 <tr><td colSpan="5" style={{textAlign:'center', padding:24}}>No pending deposits. 📦</td></tr>
@@ -40,7 +41,7 @@ export default function Debtors() {
                   <td>{d.phone || '—'}</td>
                   <td><span style={{background: '#eff6ff', padding:'2px 8px', borderRadius:4, fontSize:12}}>{d.pending_sales_count} Orders</span></td>
                   <td style={{fontSize:12, color:'#6b7280'}}>{new Date(d.last_sale_date).toLocaleDateString()}</td>
-                  <td style={{fontWeight:700, color: d.total_debt > 0 ? '#ef4444' : '#059669'}}>
+                  <td style={{fontWeight:700, color: '#059669'}}>
                     GHS {parseFloat(Math.abs(d.total_debt)).toFixed(2)}
                   </td>
                 </tr>

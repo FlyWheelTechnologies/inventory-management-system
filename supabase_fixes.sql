@@ -208,8 +208,8 @@ USING (
 );
 
 -- Create Debtors View (SECURITY INVOKER)
-DROP VIEW IF EXISTS public.debtors;
-CREATE VIEW public.debtors 
+DROP VIEW IF EXISTS public.deposits;
+CREATE VIEW public.deposits 
 WITH (security_invoker = true)
 AS
 SELECT 
@@ -224,6 +224,6 @@ JOIN public.customers c ON s.customer_id = c.id
 WHERE s.payment_status = 'pending'
 GROUP BY c.id, c.full_name, c.phone;
 
-GRANT SELECT ON public.debtors TO authenticated;
-GRANT SELECT ON public.debtors TO anon;
-GRANT SELECT ON public.debtors TO service_role;
+GRANT SELECT ON public.deposits TO authenticated;
+GRANT SELECT ON public.deposits TO anon;
+GRANT SELECT ON public.deposits TO service_role;

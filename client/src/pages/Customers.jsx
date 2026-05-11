@@ -36,16 +36,23 @@ export default function Customers() {
       updated_at: new Date().toISOString()
     };
     
-    if (editingId) {
-      await supabase.from('customers').update(payload).eq('id', editingId);
-      setEditingId(null);
-    } else {
-      payload.created_at = new Date().toISOString();
-      await supabase.from('customers').insert([payload]);
+    try {
+      if (editingId) {
+        const { error } = await supabase.from('customers').update(payload).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        payload.created_at = new Date().toISOString();
+        const { error } = await supabase.from('customers').insert([payload]);
+        if (error) throw error;
+      }
+      
+      setForm({ ...emptyForm });
+      setShowForm(false);
+      fetchCustomers();
+    } catch (err) {
+      console.error("Customer save error:", err);
+      alert("Failed to save customer: " + (err.message || "Unknown error"));
     }
-    setForm({ ...emptyForm });
-    setShowForm(false);
-    fetchCustomers();
   };
 
   const startEdit = (c) => {

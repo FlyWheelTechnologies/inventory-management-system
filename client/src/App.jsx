@@ -3,7 +3,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
-import Debtors from "./pages/Debtors";
+import Deposits from "./pages/Deposits";
 import Expenses from "./pages/Expenses";
 import JournalEntries from "./pages/JournalEntries";
 import Logs from "./pages/Logs";
@@ -21,7 +21,7 @@ function App() {
         <Route path="/products" element={<ProtectedRoute><Layout><Products /></Layout></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Layout><Sales /></Layout></ProtectedRoute>} />
         <Route path="/customers" element={<ProtectedRoute><Layout><Customers /></Layout></ProtectedRoute>} />
-        <Route path="/debtors" element={<ProtectedRoute><Layout><Debtors /></Layout></ProtectedRoute>} />
+        <Route path="/deposits" element={<ProtectedRoute><Layout><Deposits /></Layout></ProtectedRoute>} />
         <Route path="/expenses" element={<ProtectedRoute><Layout><Expenses /></Layout></ProtectedRoute>} />
         <Route path="/reports/daily" element={<ProtectedRoute><Layout><JournalEntries /></Layout></ProtectedRoute>} />
         <Route path="/logs" element={<ProtectedRoute><Layout><Logs /></Layout></ProtectedRoute>} />
