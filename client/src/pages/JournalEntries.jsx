@@ -15,6 +15,7 @@ export default function JournalEntries() {
   const [journal, setJournal] = useState([]);
   const [sales, setSales] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     const [journalRes, salesRes, expensesRes] = await Promise.all([
@@ -25,6 +26,7 @@ export default function JournalEntries() {
     if (journalRes.data) setJournal(journalRes.data);
     if (salesRes.data) setSales(salesRes.data);
     if (expensesRes.data) setExpenses(expensesRes.data);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   useEffect(() => {
@@ -86,8 +88,8 @@ export default function JournalEntries() {
     const headers = ["Date", "Debit", "Credit", "Description/Count"];
     const rows = currentData.map(j => [
       viewMode === 'Daily' ? new Date(j.created_at).toLocaleString() : j.date,
-      j.debit?.toFixed(2),
-      j.credit?.toFixed(2),
+      j.debit?.toFixed(1),
+      j.credit?.toFixed(1),
       viewMode === 'Daily' ? j.description : `${j.count} entries`
     ]);
     
@@ -99,6 +101,28 @@ export default function JournalEntries() {
     link.click();
     document.body.removeChild(link);
   };
+  if (loading) {
+    return (
+      <div className="journal-container" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 300, height: 40 }} />
+          <div style={{ display:'flex', gap:10 }}>
+            <div className="skeleton" style={{ width: 120, height: 40 }} />
+            <div className="skeleton" style={{ width: 120, height: 40 }} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 110, borderRadius: 16 }} />)}
+        </div>
+        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          <div className="skeleton" style={{ height: 45, marginBottom: 20, width: '100%' }} />
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="skeleton" style={{ height: 50, marginBottom: 12, width: '100%' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24 }} className="journal-page">
@@ -143,20 +167,20 @@ export default function JournalEntries() {
       <div className="kpi-row" style={{ marginBottom:24 }}>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Expected Revenue</span></div>
-          <div className="stat-card__value">GHS {report.totalsales.toFixed(2)}</div>
-          <div style={{fontSize:11, color:'#6b7280', marginTop:4}}>Includes GHS {report.totaltax.toFixed(2)} Tax</div>
+          <div className="stat-card__value">GHS {report.totalsales.toFixed(1)}</div>
+          <div style={{fontSize:11, color:'#6b7280', marginTop:4}}>Includes GHS {report.totaltax.toFixed(1)} Tax</div>
         </div>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Actual Cash In</span></div>
-          <div className="stat-card__value" style={{color:'#059669'}}>GHS {report.totalpaid.toFixed(2)}</div>
+          <div className="stat-card__value" style={{color:'#059669'}}>GHS {report.totalpaid.toFixed(1)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Total Expenses</span></div>
-          <div className="stat-card__value" style={{color:'#ef4444'}}>GHS {report.totalexpenses.toFixed(2)}</div>
+          <div className="stat-card__value" style={{color:'#ef4444'}}>GHS {report.totalexpenses.toFixed(1)}</div>
         </div>
         <div className="stat-card" style={{borderLeft:'3px solid var(--brand-primary)'}}>
           <div className="stat-card__header"><span className="stat-card__label">Net Cash Balance</span></div>
-          <div className="stat-card__value" style={{color: report.netcash >= 0 ? '#059669' : '#ef4444'}}>GHS {report.netcash.toFixed(2)}</div>
+          <div className="stat-card__value" style={{color: report.netcash >= 0 ? '#059669' : '#ef4444'}}>GHS {report.netcash.toFixed(1)}</div>
         </div>
       </div>
 
@@ -167,8 +191,8 @@ export default function JournalEntries() {
           </h3>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <div style={{fontSize:12, display:'flex', gap:10}} className="no-print">
-              <span style={{color:'#059669', fontWeight:700}}>Total Debits: GHS {totalDebits.toFixed(2)}</span>
-              <span style={{color:'#ef4444', fontWeight:700}}>Total Credits: GHS {totalCredits.toFixed(2)}</span>
+              <span style={{color:'#059669', fontWeight:700}}>Total Debits: GHS {totalDebits.toFixed(1)}</span>
+              <span style={{color:'#ef4444', fontWeight:700}}>Total Credits: GHS {totalCredits.toFixed(1)}</span>
             </div>
           </div>
         </div>
@@ -188,15 +212,15 @@ export default function JournalEntries() {
                 <tr key={j.id}>
                   <td style={{fontSize:11, color:'#6b7280'}}>{new Date(j.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                   <td><span style={{background:'#f0f4ff', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, color:'#2563eb'}}>{j.account_type}</span></td>
-                  <td style={{fontWeight:600, color: j.debit > 0 ? '#059669' : '#ccc'}}>{j.debit > 0 ? `GHS ${j.debit.toFixed(2)}` : '—'}</td>
-                  <td style={{fontWeight:600, color: j.credit > 0 ? '#ef4444' : '#ccc'}}>{j.credit > 0 ? `GHS ${j.credit.toFixed(2)}` : '—'}</td>
+                  <td style={{fontWeight:600, color: j.debit > 0 ? '#059669' : '#ccc'}}>{j.debit > 0 ? `GHS ${j.debit.toFixed(1)}` : '—'}</td>
+                  <td style={{fontWeight:600, color: j.credit > 0 ? '#ef4444' : '#ccc'}}>{j.credit > 0 ? `GHS ${j.credit.toFixed(1)}` : '—'}</td>
                   <td style={{fontSize:13}}>{j.description}</td>
                 </tr>
               ) : (
                 <tr key={j.date} style={{ cursor: 'pointer' }} onClick={() => { setSelectedDate(j.date); setViewMode('Daily'); }}>
                   <td style={{ fontWeight: 700 }}>{new Date(j.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                  <td style={{ color: '#059669', fontWeight: 600 }}>GHS {j.debit.toFixed(2)}</td>
-                  <td style={{ color: '#ef4444', fontWeight: 600 }}>GHS {j.credit.toFixed(2)}</td>
+                  <td style={{ color: '#059669', fontWeight: 600 }}>GHS {j.debit.toFixed(1)}</td>
+                  <td style={{ color: '#ef4444', fontWeight: 600 }}>GHS {j.credit.toFixed(1)}</td>
                   <td style={{ fontSize: 12 }}>{j.count} entries recorded</td>
                   <td><button className="action-btn" style={{ fontSize: 10, padding: '4px 8px' }}>View Day</button></td>
                 </tr>

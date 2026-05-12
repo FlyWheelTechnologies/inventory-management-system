@@ -12,7 +12,8 @@ CREATE OR REPLACE FUNCTION public.record_sale_transaction(
   p_items jsonb,
   p_recorded_by text,
   p_tax_percentage numeric DEFAULT 0,
-  p_tax_inclusive boolean DEFAULT TRUE
+  p_tax_inclusive boolean DEFAULT TRUE,
+  p_credit_used numeric DEFAULT 0
 )
  RETURNS uuid
  LANGUAGE plpgsql
@@ -20,17 +21,19 @@ CREATE OR REPLACE FUNCTION public.record_sale_transaction(
 AS $function$
 DECLARE
   v_sale_id UUID;
-  v_calculated_total NUMERIC := 0;
   v_tax_amount NUMERIC := 0;
   v_net_amount NUMERIC := 0;
+  v_total_with_tax NUMERIC;
   v_item RECORD;
 BEGIN
   IF p_tax_inclusive THEN
     v_net_amount := p_total_amount / (1 + (p_tax_percentage / 100));
     v_tax_amount := p_total_amount - v_net_amount;
+    v_total_with_tax := p_total_amount;
   ELSE
     v_tax_amount := p_total_amount * (p_tax_percentage / 100);
     v_net_amount := p_total_amount;
+    v_total_with_tax := p_total_amount + v_tax_amount;
   END IF;
 
   INSERT INTO public.sales (
@@ -40,9 +43,9 @@ BEGIN
   )
   VALUES (
     p_customer_id, p_customer_name, 
-    CASE WHEN p_tax_inclusive THEN p_total_amount ELSE p_total_amount + v_tax_amount END, 
-    p_amount_paid, 
-    (CASE WHEN p_tax_inclusive THEN p_total_amount ELSE p_total_amount + v_tax_amount END) - p_amount_paid,
+    v_total_with_tax, 
+    p_amount_paid + p_credit_used, 
+    v_total_with_tax - (p_amount_paid + p_credit_used),
     p_payment_status, p_payment_method, p_recorded_by,
     p_tax_percentage, p_tax_inclusive, v_tax_amount
   ) RETURNING id INTO v_sale_id;
@@ -55,6 +58,7 @@ BEGIN
     UPDATE public.products SET stock_quantity = stock_quantity - v_item.quantity WHERE id = v_item.product_id;
   END LOOP;
 
+  -- Journaling
   INSERT INTO public.journal_entries (sale_id, account_type, credit, description) 
   VALUES (v_sale_id, 'REVENUE', v_net_amount, 'Revenue from Sale #' || v_sale_id);
   
@@ -65,14 +69,33 @@ BEGIN
   
   IF p_amount_paid > 0 THEN
     INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
-    VALUES (v_sale_id, pg_catalog.upper(p_payment_method), p_amount_paid, 'Payment received');
+    VALUES (v_sale_id, pg_catalog.upper(p_payment_method), p_amount_paid, 'Cash/Momo payment received');
+  END IF;
+
+  IF p_credit_used > 0 THEN
+    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
+    VALUES (v_sale_id, 'CUSTOMER_DEPOSIT', p_credit_used, 'Applied from customer credit');
   END IF;
   
-  IF ((CASE WHEN p_tax_inclusive THEN p_total_amount ELSE p_total_amount + v_tax_amount END) - p_amount_paid) > 0 THEN
+  IF (v_total_with_tax - (p_amount_paid + p_credit_used)) > 0 THEN
     INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
-    VALUES (v_sale_id, 'ACCOUNTS_RECEIVABLE', (CASE WHEN p_tax_inclusive THEN p_total_amount ELSE p_total_amount + v_tax_amount END) - p_amount_paid, 'Debt recorded');
+    VALUES (v_sale_id, 'ACCOUNTS_RECEIVABLE', (v_total_with_tax - (p_amount_paid + p_credit_used)), 'Debt recorded');
   END IF;
 
   RETURN v_sale_id;
 END;
 $function$;
+
+-- Function to fulfill a deposit sale
+CREATE OR REPLACE FUNCTION public.fulfill_sale(p_sale_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.sales
+  SET payment_status = CASE WHEN balance_due <= 0 THEN 'PAID' ELSE 'PARTIAL' END
+  WHERE id = p_sale_id AND payment_status = 'DEPOSIT';
+END;
+$$;

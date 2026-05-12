@@ -20,10 +20,12 @@ export default function Products() {
   const { user } = useAuth();
   const isAuditor = user?.role === 'auditor';
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (data) setProducts(data);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function Products() {
 
     const payload = {
       ...form,
+      item_code: form.item_code?.trim() || `FA-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
       cost_price: parseFloat(form.cost_price) || 0,
       selling_price: parseFloat(form.selling_price) || 0,
       stock_quantity: parseFloat(form.stock_quantity) || 0,
@@ -181,6 +184,27 @@ export default function Products() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  if (loading) {
+    return (
+      <div className="products-container" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 300, height: 35 }} />
+          <div style={{ display:'flex', gap:10 }}>
+            <div className="skeleton" style={{ width: 120, height: 38 }} />
+            <div className="skeleton" style={{ width: 120, height: 38 }} />
+            <div className="skeleton" style={{ width: 120, height: 38 }} />
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          <div className="skeleton" style={{ height: 45, marginBottom: 24, width: '100%' }} />
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="skeleton" style={{ height: 50, marginBottom: 12, width: '100%' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
@@ -259,7 +283,7 @@ export default function Products() {
                   <input style={{...inp, fontWeight:700, color:'#059669', border:'1px solid #10b981'}} type="number" step="0.01" value={form.selling_price} onChange={e => setForm(f=>({...f, selling_price:e.target.value}))} required />
                 </div>
                 <div>
-                  <label style={lbl}>UOM (e.g. Bag, Pcs)</label>
+                  <label style={lbl}>Unit of Measure (e.g. Bag, Pcs)</label>
                   <input style={inp} value={form.selling_uom} onChange={e => setForm(f=>({...f, selling_uom:e.target.value}))} />
                 </div>
               </div>
@@ -346,22 +370,30 @@ export default function Products() {
         <div className="table-wrapper">
           <table className="stock-table">
             <thead><tr>
-              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Buy UOM</th><th>Sell UOM</th><th>Cost</th><th>Price</th><th>Status</th>{!isAuditor && <th>Actions</th>}
+              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Buy Unit</th><th>Sell Unit</th><th>Cost</th><th>Price</th><th>Status</th>{!isAuditor && <th>Actions</th>}
             </tr></thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr><td colSpan={isAuditor ? "9" : "10"} style={{textAlign:'center', padding:24}}>No products found.</td></tr>
               ) : paginated.map(p => (
                 <tr key={p.id}>
-                  <td className="table-code">{p.item_code}</td>
+                  <td className="table-code">{p.item_code || '---'}</td>
                   <td style={{fontWeight:500}}>{p.name}</td>
                   <td><span style={{background:'#f3f4f6', padding:'2px 8px', borderRadius:4, fontSize:12}}>{p.category}</span></td>
                   <td style={{fontWeight:600}}>{p.stock_quantity} {p.selling_uom}s</td>
                   <td>{p.buying_uom}</td>
                   <td>{p.selling_uom}</td>
-                  <td>GHS {parseFloat(p.cost_price||0).toFixed(2)}</td>
-                  <td style={{fontWeight:600}}>GHS {parseFloat(p.selling_price||0).toFixed(2)}</td>
-                  <td><span className={`status-pill status-pill--${p.stock_quantity < (p.low_stock_threshold || 10) ? 'low' : 'ok'}`}>{p.stock_quantity < (p.low_stock_threshold || 10) ? 'Low' : 'OK'}</span></td>
+                  <td>GHS {parseFloat(p.cost_price||0).toFixed(1)}</td>
+                  <td style={{fontWeight:600}}>GHS {parseFloat(p.selling_price||0).toFixed(1)}</td>
+                  <td>
+                    {p.stock_quantity <= 0 ? (
+                      <span className="status-pill" style={{ background: '#000', color: '#fff' }}>DEPLETED</span>
+                    ) : (
+                      <span className={`status-pill status-pill--${p.stock_quantity < (p.low_stock_threshold || 10) ? 'low' : 'ok'}`}>
+                        {p.stock_quantity < (p.low_stock_threshold || 10) ? 'Low Stock' : 'OK'}
+                      </span>
+                    )}
+                  </td>
                   {!isAuditor && (
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>

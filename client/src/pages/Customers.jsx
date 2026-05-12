@@ -10,10 +10,12 @@ export default function Customers() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchCustomers = async () => {
     const { data } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
     if (data) setCustomers(data);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   useEffect(() => {
@@ -105,6 +107,23 @@ export default function Customers() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  if (loading) {
+    return (
+      <div className="customers-container" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 300, height: 40 }} />
+          <div className="skeleton" style={{ width: 140, height: 40 }} />
+        </div>
+        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          <div className="skeleton" style={{ height: 45, marginBottom: 20, width: '100%' }} />
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="skeleton" style={{ height: 50, marginBottom: 12, width: '100%' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -161,7 +180,7 @@ export default function Customers() {
                     </td>
                     <td><span style={{ background: c.is_contractor ? '#dbeafe' : '#f3f4f6', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{c.is_contractor ? 'Contractor' : 'Regular'}</span></td>
                     <td style={{ fontSize: 11, color: '#6b7280' }}>{new Date(c.created_at).toLocaleDateString()}</td>
-                    <td style={{ fontWeight: 600 }}>GHS {(c.total_spent || 0).toFixed(2)}</td>
+                    <td style={{ fontWeight: 600 }}>GHS {(c.total_spent || 0).toFixed(1)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="quick-action-btn" style={{ padding: '4px 8px', fontSize: 11, width: 'auto' }} onClick={() => viewHistory(c)}>History</button>
@@ -191,7 +210,7 @@ export default function Customers() {
             <div className="table-card__header">
               <h3 className="table-card__title">Sales History: {selectedCustomer.name}</h3>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
-                Lifetime Spent: GHS {history.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0).toFixed(2)}
+                Lifetime Spent: GHS {history.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0).toFixed(1)}
               </div>
               <button className="close-btn" onClick={() => setSelectedCustomer(null)}>✕</button>
             </div>
@@ -205,7 +224,7 @@ export default function Customers() {
                     <tr key={h.id}>
                       <td>{new Date(h.created_at).toLocaleDateString()}</td>
                       <td className="table-code">#INV-{String(h.invoice_no || h.id).slice(-6).padStart(3, '0')}</td>
-                      <td style={{ fontWeight: 600 }}>GHS {parseFloat(h.total_amount).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600 }}>GHS {parseFloat(h.total_amount).toFixed(1)}</td>
                       <td><span className={`status-pill status-pill--${h.payment_status === 'PAID' ? 'ok' : 'low'}`} style={{ fontSize: 10 }}>{h.payment_status}</span></td>
                     </tr>
                   ))}

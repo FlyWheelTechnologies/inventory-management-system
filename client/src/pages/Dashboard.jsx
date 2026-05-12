@@ -33,8 +33,15 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depCustName, setDepCustName] = useState('');
+  const [depCustPhone, setDepCustPhone] = useState('');
+  const [depAmount, setDepAmount] = useState('');
+  const [depMethod, setDepMethod] = useState('Cash');
+  const [depSaving, setDepSaving] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,10 +58,40 @@ export default function Dashboard() {
       if (salesRes.data) setSales(salesRes.data);
       if (expensesRes.data) setExpenses(expensesRes.data);
       if (logsRes.data) setLogs(logsRes.data);
+      setTimeout(() => setLoading(false), 1000);
     };
     
     fetchData();
   }, []);
+
+  const handlePureDeposit = async (e) => {
+    e.preventDefault();
+    if (!depCustName || !depCustPhone || !depAmount) return alert("Please fill all fields");
+    setDepSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('record_pure_deposit', {
+        p_customer_name: depCustName,
+        p_customer_phone: depCustPhone,
+        p_amount: parseFloat(depAmount),
+        p_recorded_by: user?.email,
+        p_payment_method: depMethod
+      });
+
+      if (error) throw error;
+
+      alert("Deposit recorded successfully!");
+      setShowDepositModal(false);
+      setDepCustName('');
+      setDepCustPhone('');
+      setDepAmount('');
+      // Refresh data
+      window.location.reload(); 
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setDepSaving(false);
+    }
+  };
   const [showAudit, setShowAudit] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -74,8 +111,8 @@ export default function Dashboard() {
       startY: 40,
       head: [['Metric', 'Value']],
       body: [
-        ['Total Sales Today', `GHS ${todayRevenue.toFixed(2)}`],
-        ['Total Stock Value', `GHS ${stockValue.toFixed(2)}`],
+        ['Total Sales Today', `GHS ${todayRevenue.toFixed(1)}`],
+        ['Total Stock Value', `GHS ${stockValue.toFixed(1)}`],
         ['Low Stock Count', `${lowStockCount} Items`],
       ],
     });
@@ -90,6 +127,28 @@ export default function Dashboard() {
     doc.save(`FlorzyAngel_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  if (loading) {
+    return (
+      <div className="dashboard-container" style={{ padding: 30 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:30 }}>
+          <div className="skeleton" style={{ width: 350, height: 45 }} />
+          <div className="skeleton" style={{ width: 140, height: 40 }} />
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, marginBottom: 32 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="skeleton" style={{ height: 140, borderRadius: 16 }} />
+          ))}
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
+          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
+          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
+        </div>
+      </div>
+    );
+  }
+
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return "Morning";
@@ -102,7 +161,8 @@ export default function Dashboard() {
   const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
   const todayRevenue = todaySales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
   const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * parseFloat(p.stock_quantity || 0)), 0);
-  const lowStockCount = products.filter(p => p.stock_quantity < (p.low_stock_threshold || 10)).length;
+  const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
+  const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
 
   // Real Insights Calculations
   const bestSeller = products.length > 0 
@@ -141,18 +201,23 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 1.5 }}>Sunyani, Ghana 🇬🇭</div>
             <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
             <p className="greeting-sub">
-              {lowStockCount > 0 
-                ? `You have ${lowStockCount} items running low. ` 
-                : 'All stock levels are healthy. '}
-              Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>GHS {todayRevenue.toFixed(2)}</span>.
+              {depletedCount > 0 ? (
+                <span style={{ color: '#ef4444', fontWeight: 800 }}>⚠️ {depletedCount} ITEMS ARE COMPLETELY DEPLETED! </span>
+              ) : lowStockCount > 0 ? (
+                `You have ${lowStockCount} items running low. `
+              ) : (
+                'All stock levels are healthy. '
+              )}
+              Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>GHS {todayRevenue.toFixed(1)}</span>.
             </p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {user?.role !== 'auditor' && (
             <>
-              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => navigate("/expenses")}>Record Expense</button>
-              <button className="quick-action-btn" style={{ background: 'var(--brand-primary)' }} onClick={() => navigate("/products")}>+ Add Stock</button>
+              <button className="quick-action-btn" style={{ background: '#6b7280' }} onClick={() => navigate("/expenses")}>Record Expense</button>
+              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => setShowDepositModal(true)}>📥 Record Deposit</button>
+              <button className="quick-action-btn" style={{ background: '#4f46e5' }} onClick={() => navigate("/products")}>+ Add Product</button>
               <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales")}>Record Sale</button>
             </>
           )}
@@ -164,12 +229,12 @@ export default function Dashboard() {
           <>
             <StatCard
               label={<>Today's Cash In <InfoTip text="Total cash and momo collected today." /></>}
-              value={`GHS ${todayCashIn.toFixed(2)}`}
+              value={`GHS ${todayCashIn.toFixed(1)}`}
               icon="💰"
             />
             <StatCard
               label={<>Today's Revenue <InfoTip text="Total volume of sales recorded (Paid + Credit)." /></>}
-              value={`GHS ${todayRevenue.toFixed(2)}`}
+              value={`GHS ${todayRevenue.toFixed(1)}`}
               icon="📈"
               accent="primary"
             />
@@ -177,13 +242,13 @@ export default function Dashboard() {
         )}
         <StatCard
           label={<>Pending Deposits <InfoTip text="Orders paid in advance awaiting fulfillment." /></>}
-          value={`${sales.filter(s => s.payment_status === 'pending' || s.payment_status === 'partial').length} Orders`}
+          value={`${sales.filter(s => s.payment_status === 'DEPOSIT' || (s.payment_status === 'PARTIAL' && s.balance_due > 0)).length} Orders`}
           accent="primary"
           icon="⏳"
         />
         <StatCard
           label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
-          value={`GHS ${stockValue.toFixed(2)}`}
+          value={`GHS ${stockValue.toFixed(1)}`}
           icon="📦"
         />
         <StatCard
@@ -267,9 +332,10 @@ export default function Dashboard() {
             <table className="stock-table">
               <thead>
                 <tr>
+                  <th>Code</th>
                   <th>Item Name</th>
                   <th>Qty</th>
-                  <th>UOM</th>
+                  <th>Unit</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -281,13 +347,18 @@ export default function Dashboard() {
                     style={{ cursor: 'pointer' }}
                     className="clickable-row"
                   >
+                    <td className="table-code" style={{ fontSize: '11px', fontWeight: 600 }}>{p.item_code || '---'}</td>
                     <td style={{ fontWeight: 500 }}>{p.name}</td>
                     <td>{p.stock_quantity}</td>
                     <td>{p.selling_uom}</td>
                     <td>
-                      <span className={`status-pill status-pill--${p.stock_quantity < (p.low_stock_threshold || 10) ? 'low' : 'ok'}`}>
-                        {p.stock_quantity < (p.low_stock_threshold || 10) ? 'Low' : 'OK'}
-                      </span>
+                      {p.stock_quantity <= 0 ? (
+                        <span className="status-pill" style={{ background: '#000', color: '#fff', fontSize: '10px' }}>DEPLETED</span>
+                      ) : (
+                        <span className={`status-pill status-pill--low`}>
+                          Low
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -317,6 +388,49 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showDepositModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', padding: 32, borderRadius: 20, width: 420, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: '#111827' }}>📥 Record Customer Deposit</h2>
+            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Add a prepayment to a customer's account balance. This does not affect stock.</p>
+            
+            <form onSubmit={handlePureDeposit}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Customer Name</label>
+                <input type="text" value={depCustName} onChange={e => setDepCustName(e.target.value)} placeholder="e.g. John Doe" style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} required />
+              </div>
+              
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Phone Number</label>
+                <input type="text" value={depCustPhone} onChange={e => setDepCustPhone(e.target.value)} placeholder="e.g. 024XXXXXXX" style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} required />
+              </div>
+              
+              <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Amount (GHS)</label>
+                  <input type="number" step="0.1" value={depAmount} onChange={e => setDepAmount(e.target.value)} placeholder="0.0" style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} required />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Method</label>
+                  <select value={depMethod} onChange={e => setDepMethod(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14, background: '#fff' }}>
+                    <option>Cash</option>
+                    <option>Momo</option>
+                    <option>Bank</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="button" onClick={() => setShowDepositModal(false)} style={{ flex: 1, padding: '14px', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={depSaving} style={{ flex: 2, padding: '14px', borderRadius: 12, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: depSaving ? 0.7 : 1 }}>
+                  {depSaving ? 'Recording...' : 'Record Deposit'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

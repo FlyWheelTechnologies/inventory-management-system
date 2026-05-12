@@ -32,11 +32,10 @@ export default function Logs() {
     
     if (error) {
       console.error("Error fetching logs:", error.message);
-      // Optional: show a small inline error or alert
     } else if (data) {
       setLogs(data);
     }
-    setLoading(false);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   const getActionColor = (action) => {
@@ -54,6 +53,24 @@ export default function Logs() {
     const matchesFilter = filter === 'ALL' || log.action.startsWith(filter);
     return matchesSearch && matchesFilter;
   });
+  if (loading) {
+    return (
+      <div className="logs-container" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 300, height: 40 }} />
+          <div style={{ display:'flex', gap:10 }}>
+            <div className="skeleton" style={{ width: 120, height: 38 }} />
+            <div className="skeleton" style={{ width: 160, height: 38 }} />
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          {[1,2,3,4,5,6,7,8,9,10].map(i => (
+            <div key={i} className="skeleton" style={{ height: 45, marginBottom: 12, width: '100%' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>

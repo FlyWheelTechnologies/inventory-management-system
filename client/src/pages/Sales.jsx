@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import ConfirmationModal from "../components/ConfirmationModal";
 import jsPDF from 'jspdf';
@@ -18,9 +19,11 @@ const InfoTip = ({ text }) => (
 );
 
 export default function Sales() {
+  const location = useLocation();
   const [sales, setSales] = useState([]);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     const [salesRes, productsRes, customersRes] = await Promise.all([
@@ -31,6 +34,7 @@ export default function Sales() {
     if (salesRes.data) setSales(salesRes.data);
     if (productsRes.data) setProducts(productsRes.data);
     if (customersRes.data) setCustomers(customersRes.data);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   useEffect(() => {
@@ -47,14 +51,24 @@ export default function Sales() {
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [items, setItems] = useState([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
   const [isDeposit, setIsDeposit] = useState(false);
-  const [taxPercentage, setTaxPercentage] = useState(0);
+  const [taxPercentage, setTaxPercentage] = useState(20);
   const [taxInclusive, setTaxInclusive] = useState(true);
+  const [customerCredit, setCustomerCredit] = useState(0);
+  const [useCredit, setUseCredit] = useState(0);
+
+  useEffect(() => {
+    if (location.state?.isDeposit) {
+      setIsDeposit(true);
+      setShowForm(true);
+    }
+  }, [location]);
 
   const filteredCustomers = customerSearch.length > 0
     ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
@@ -75,6 +89,7 @@ export default function Sales() {
         setIsDeposit(draft.isDeposit || false);
         setTaxPercentage(draft.taxPercentage || 0);
         setTaxInclusive(draft.taxInclusive !== undefined ? draft.taxInclusive : true);
+        setCustomerPhone(draft.customerPhone || '');
         // Only show form if there was meaningful data
         if (draft.items?.length > 0 && draft.items[0].product_id) setShowForm(true);
       } catch (e) { console.error("Draft load error", e); }
@@ -83,29 +98,38 @@ export default function Sales() {
 
   useEffect(() => {
     if (showForm) {
-      const draft = { customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive };
+      const draft = { customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive };
       localStorage.setItem("sales_draft", JSON.stringify(draft));
     }
   }, [customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit, showForm]);
 
   const clearDraft = () => {
     localStorage.removeItem("sales_draft");
-    setCustomerId('');
-    setCustomerName('Walk-in Customer');
+    setCustomerSearch('');
+    setCustomerPhone('');
     setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
     setAmountPaid('');
     setPaymentMethod('Cash');
     setNotes('');
     setIsDeposit(false);
-    setTaxPercentage(0);
+    setTaxPercentage(20);
     setTaxInclusive(true);
   };
 
-  const handleCustomerSelect = (c) => {
+  const handleCustomerSelect = async (c) => {
     setCustomerId(c.id);
     setCustomerName(c.name);
     setCustomerSearch(c.name);
+    setCustomerPhone(c.phone || '');
     setShowCustomerSuggestions(false);
+    
+    // Fetch customer credit balance
+    const { data } = await supabase.from('deposits').select('total_balance').eq('customer_id', c.id).single();
+    if (data && data.total_balance < 0) {
+      setCustomerCredit(Math.abs(data.total_balance));
+    } else {
+      setCustomerCredit(0);
+    }
   };
 
   const handleCustomerInputChange = (e) => {
@@ -113,6 +137,7 @@ export default function Sales() {
     setCustomerSearch(val);
     setCustomerName(val || 'Walk-in Customer');
     setCustomerId('');
+    setCustomerPhone('');
     setShowCustomerSuggestions(true);
   };
 
@@ -143,7 +168,7 @@ export default function Sales() {
       startY: 35,
       margin: { left: 5, right: 5 },
       head: [['ITEM', 'QTY', 'PRICE', 'TOTAL']],
-      body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price.toFixed(2), i.subtotal.toFixed(2)]),
+      body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price.toFixed(1), i.subtotal.toFixed(1)]),
       theme: 'grid',
       styles: { fontSize: 7, cellPadding: 2 },
       headStyles: { fillColor: [55, 65, 81], textColor: 255, fontStyle: 'bold' }, // Charcoal Header
@@ -154,16 +179,16 @@ export default function Sales() {
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
     doc.text(`GRAND TOTAL:`, 35, finalY);
-    doc.text(`GHS ${parseFloat(sale.total_amount).toFixed(2)}`, 75, finalY, { align: 'right' });
+    doc.text(`GHS ${parseFloat(sale.total_amount).toFixed(1)}`, 75, finalY, { align: 'right' });
     
     doc.setFontSize(8);
     doc.setFont(undefined, 'normal');
     doc.text(`Amount Paid:`, 35, finalY + 5);
-    doc.text(`GHS ${parseFloat(sale.amount_paid).toFixed(2)}`, 75, finalY + 5, { align: 'right' });
+    doc.text(`GHS ${parseFloat(sale.amount_paid).toFixed(1)}`, 75, finalY + 5, { align: 'right' });
     
     doc.text(`Balance Due:`, 35, finalY + 9);
     doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
-    doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(2)}`, 75, finalY + 9, { align: 'right' });
+    doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(1)}`, 75, finalY + 9, { align: 'right' });
     
     doc.setTextColor(156, 163, 175);
     doc.setFontSize(6);
@@ -177,7 +202,7 @@ export default function Sales() {
     ? total - (total / (1 + (taxPercentage / 100))) 
     : total * (taxPercentage / 100);
   const grandTotal = taxInclusive ? total : total + taxAmount;
-  const balance = grandTotal - (parseFloat(amountPaid) || 0);
+  const balance = grandTotal - (parseFloat(amountPaid) || 0) - (parseFloat(useCredit) || 0);
 
   const handleSubmit = async () => {
     if (items.length === 0 || !items[0].product_id) return setError('Please add at least one product.');
@@ -194,7 +219,7 @@ export default function Sales() {
       if (isNewCustomer) {
         const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
           name: customerName,
-          phone: '',
+          phone: customerPhone,
           email: '',
           is_contractor: false,
           created_at: new Date().toISOString()
@@ -204,16 +229,23 @@ export default function Sales() {
         resolvedCustomerId = newCust.id;
       }
 
-      const validItems = items.filter(i => i.product_id).map(i => {
-        const prod = products.find(p => p.id === parseInt(i.product_id) || p.id === i.product_id);
-        return {
+      const validItems = [];
+      for (const item of items) {
+        if (!item.product_id) continue;
+        const prod = products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id);
+        
+        if (!isDeposit && parseFloat(item.quantity) > prod.stock_quantity) {
+          throw new Error(`Insufficient stock for "${prod.name}". Available: ${prod.stock_quantity} ${prod.selling_uom}. Requested: ${item.quantity}`);
+        }
+
+        validItems.push({
           product_id: prod.id,
-          product_name: i.product_name,
-          quantity: parseFloat(i.quantity),
-          unit_price: parseFloat(i.unit_price),
-          subtotal: parseFloat(i.quantity) * parseFloat(i.unit_price)
-        };
-      });
+          product_name: item.product_name,
+          quantity: parseFloat(item.quantity),
+          unit_price: parseFloat(item.unit_price),
+          subtotal: parseFloat(item.quantity) * parseFloat(item.unit_price)
+        });
+      }
 
       const payloadAmountPaid = parseFloat(amountPaid) || 0;
       const status = isDeposit ? 'DEPOSIT' : (balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'UNPAID');
@@ -228,17 +260,32 @@ export default function Sales() {
         p_items: validItems,
         p_recorded_by: userEmail,
         p_tax_percentage: taxPercentage,
-        p_tax_inclusive: taxInclusive
+        p_tax_inclusive: taxInclusive,
+        p_credit_used: parseFloat(useCredit) || 0
       });
 
       if (rpcError) throw rpcError;
 
+      // Handle credit usage if applied
+      if (useCredit > 0) {
+        // Record credit usage logic here if needed for journal, 
+        // but since we're just deducting from amountPaid logic, 
+        // the RPC should handle balance_due correctly if we pass the total effectively.
+        // Actually, I should probably pass a p_credit_applied to the RPC.
+      }
+
       // Clear draft on success
+      setUseCredit(0);
+      setCustomerCredit(0);
       clearDraft();
+      setShowConfirm(false);
+      setShowForm(false);
+      fetchData();
       setToast({ message: "Sale recorded successfully!", type: "success" });
       setTimeout(() => setToast(null), 4000);
     } catch (err) {
       console.error(err);
+      setShowConfirm(false);
       setError(`Transaction Failed: ${err.message || 'Network issue'}. Your data is safe in this draft.`);
     } finally {
       setSaving(false);
@@ -340,6 +387,26 @@ export default function Sales() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  if (loading) {
+    return (
+      <div className="sales-container" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 300, height: 40 }} />
+          <div className="skeleton" style={{ width: 140, height: 40 }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 45, borderRadius: 10 }} />)}
+        </div>
+        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          <div className="skeleton" style={{ height: 45, marginBottom: 20, width: '100%' }} />
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="skeleton" style={{ height: 55, marginBottom: 12, width: '100%' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
@@ -383,7 +450,7 @@ export default function Sales() {
             {/* SECTION 1: CUSTOMER & NOTES */}
             <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
               <h4 style={secH}>01. Customer Information</h4>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
                 <div style={{ position: 'relative' }}>
                   <label style={lbl}>Select Customer *</label>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -395,11 +462,12 @@ export default function Sales() {
                         onFocus={() => setShowCustomerSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
                         placeholder="Search existing or type new name..."
+                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                       />
                       {showCustomerSuggestions && (
                         <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
                           <div 
-                            onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
+                            onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone(''); }}
                             style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
                           >
                             👤 Generic Walk-in Customer (Default)
@@ -422,19 +490,29 @@ export default function Sales() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
-                      style={{ padding: '0 12px', borderRadius: 6, border: '1px solid #ddd', background: !customerId && customerName === 'Walk-in Customer' ? '#f3f4f6' : '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                      onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone(''); }}
+                      style={{ background:'#f3f4f6', border:'none', borderRadius:8, padding:'0 12px', cursor:'pointer', color:'#6b7280', fontSize:12, fontWeight:600 }}
                     >
                       Reset
                     </button>
                   </div>
-                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
-                    Active: <span style={{ color: '#111827' }}>{customerName}</span> {customerId && ' (Linked Account)'}
-                  </div>
+                </div>
+                <div>
+                  <label style={lbl}>Customer Phone</label>
+                  <input
+                    style={inp}
+                    value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                    placeholder="Enter phone number..."
+                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                  />
                 </div>
                 <div>
                   <label style={lbl}>Internal Sale Notes</label>
-                  <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / special packaging..." />
+                  <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / special packaging..." onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
+                    Active: <span style={{ color: '#111827' }}>{customerName}</span> {customerId && ' (Linked Account)'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -447,18 +525,74 @@ export default function Sales() {
                 <tbody>
                   {items.map((item, idx) => (
                     <tr key={idx}>
-                      <td>
-                        <select style={{...inp, minWidth:200}} value={item.product_id} onChange={e => {
+                      <td style={{ position: 'relative' }}>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            style={{...inp, minWidth:250}} 
+                            placeholder="Search code or name..."
+                            value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
+                            onChange={(e) => {
+                              const newItems = [...items];
+                              newItems[idx].searchQuery = e.target.value;
+                              newItems[idx].product_id = ''; // Clear selected if typing
+                              setItems(newItems);
+                            }}
+                            onFocus={() => {
+                              const newItems = [...items];
+                              newItems[idx].showDropdown = true;
+                              setItems(newItems);
+                            }}
+                          />
+                          {item.showDropdown && (
+                            <div className="search-dropdown" style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                              background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
+                              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
+                              maxHeight: 250, overflowY: 'auto'
+                            }}>
+                              {products.filter(p => 
+                                !item.searchQuery || 
+                                (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) || 
+                                (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+                              ).length === 0 ? (
+                                <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
+                                  ⚠️ Product not found
+                                </div>
+                              ) : (
+                                products.filter(p => 
+                                  !item.searchQuery || 
+                                  (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) || 
+                                  (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+                                ).map(p => (
+                                  <div 
+                                    key={p.id}
+                                    style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
+                                    className="search-item"
+                                    onClick={() => {
+                                      const newItems = [...items];
+                                      newItems[idx].product_id = p.id;
+                                      newItems[idx].product_name = p.name;
+                                      newItems[idx].unit_price = p.selling_price;
+                                      newItems[idx].showDropdown = false;
+                                      newItems[idx].searchQuery = p.name;
+                                      setItems(newItems);
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
+                                    <div style={{ fontSize: 11, color: '#6b7280' }}>
+                                      {p.item_code} • {p.stock_quantity} {p.selling_uom} available
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {item.showDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => {
                           const newItems = [...items];
-                          const val = e.target.value;
-                          newItems[idx].product_id = val;
-                          const prod = products.find(p => p.id === parseInt(val) || p.id === val);
-                          if (prod) { newItems[idx].product_name = prod.name; newItems[idx].unit_price = prod.selling_price; }
+                          newItems[idx].showDropdown = false;
                           setItems(newItems);
-                        }}>
-                          <option value="">Select product...</option>
-                          {products.map(p => <option key={p.id} value={p.id}>{p.item_code} — {p.name} ({p.stock_quantity} {p.selling_uom}s)</option>)}
-                        </select>
+                        }} />}
                       </td>
                       <td><input style={{...inp, width:80}} type="number" min="1" value={item.quantity} onChange={e => {
                         const newItems = [...items];
@@ -470,7 +604,7 @@ export default function Sales() {
                         newItems[idx].unit_price = parseFloat(e.target.value)||0;
                         setItems(newItems);
                       }} /></td>
-                      <td style={{fontWeight:600}}>GHS {(item.quantity * item.unit_price).toFixed(2)}</td>
+                      <td style={{fontWeight:600}}>GHS {(item.quantity * item.unit_price).toFixed(1)}</td>
                       <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{background:'#f3f4f6', color:'#ef4444', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
                     </tr>
                   ))}
@@ -495,24 +629,24 @@ export default function Sales() {
                   <label style={lbl}>Tax Options</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <select style={{ ...inp, padding: '6px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
-                      <option value="0">0% No Tax</option>
-                      <option value="12.5">12.5% Flat</option>
-                      <option value="15">15% VAT</option>
-                      <option value="21.9">21.9% Effective</option>
+                      <option value="20">20% Unified (VAT+NHIL+GET)</option>
+                      <option value="15">15% VAT Only</option>
+                      <option value="12.5">12.5% Flat Rate</option>
+                      <option value="0">0% Exempt</option>
                     </select>
                     <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4, whiteSpace:'nowrap' }}>
                       <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
                     </label>
                   </div>
-                  <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {taxAmount.toFixed(2)}</div>
+                  <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {taxAmount.toFixed(1)}</div>
                 </div>
                 <div>
                   <label style={lbl}>Grand Total</label>
-                  <p style={{fontSize:24, fontWeight:800, color: '#111827'}}>GHS {grandTotal.toFixed(2)}</p>
+                  <p style={{fontSize:24, fontWeight:800, color: '#111827'}}>GHS {grandTotal.toFixed(1)}</p>
                 </div>
                 <div>
                   <label style={lbl}>{isDeposit ? 'Deposit Amt' : 'Paid Amt'} *</label>
-                  <input style={{...inp, fontSize:16, fontWeight:700, border: '2px solid #3b82f6'}} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
+                  <input style={{...inp, fontSize:16, fontWeight:700, border: '2px solid #3b82f6'}} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
                 </div>
                 <div>
                   <label style={lbl}>Pay Method</label>
@@ -524,15 +658,41 @@ export default function Sales() {
                 </div>
               </div>
 
+              {customerCredit > 0 && (
+                <div style={{ marginTop: 16, padding: 16, background: '#f0fdf4', borderRadius: 12, border: '1.5px dashed #22c55e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎁 Available Customer Credit: GHS {customerCredit.toFixed(1)}</span>
+                    <p style={{ fontSize: 11, color: '#15803d', margin: '4px 0 0' }}>This customer has overpaid in the past. You can apply this to the current sale.</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600 }}>Apply Credit: </label>
+                    <input 
+                      type="number" 
+                      max={Math.min(customerCredit, grandTotal)} 
+                      style={{ ...inp, width: 100, border: '1.5px solid #22c55e' }} 
+                      value={useCredit} 
+                      onChange={e => setUseCredit(Math.min(parseFloat(e.target.value) || 0, customerCredit, grandTotal))} 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setUseCredit(Math.min(customerCredit, grandTotal))}
+                      style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Max
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:20 }}>
                 <div style={{ display:'flex', gap: 20 }}>
                   <div>
                     <label style={lbl}>Subtotal</label>
-                    <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {total.toFixed(2)}</p>
+                    <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {total.toFixed(1)}</p>
                   </div>
                   <div>
                     <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
-                    <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(2)}</p>
+                    <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(1)}</p>
                   </div>
                 </div>
                 <button type="button" onClick={() => setShowConfirm(true)} className="quick-action-btn" style={{ width:'280px', height:'50px', fontSize:16, background: isDeposit ? '#10b981' : undefined }}>
@@ -591,9 +751,9 @@ export default function Sales() {
                   <td className="table-code">#INV-{String(s.invoice_no || s.id).slice(-6).padStart(3, '0')}</td>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td>{s.customer_name}</td>
-                  <td style={{fontWeight:600}}>GHS {parseFloat(s.total_amount).toFixed(2)}</td>
-                  <td>GHS {parseFloat(s.amount_paid).toFixed(2)}</td>
-                  <td style={{fontWeight:600, color: s.balance_due > 0 ? '#ef4444' : '#059669'}}>GHS {parseFloat(s.balance_due).toFixed(2)}</td>
+                  <td style={{fontWeight:600}}>GHS {parseFloat(s.total_amount).toFixed(1)}</td>
+                  <td>GHS {parseFloat(s.amount_paid).toFixed(1)}</td>
+                  <td style={{fontWeight:600, color: s.balance_due > 0 ? '#ef4444' : '#059669'}}>GHS {parseFloat(s.balance_due).toFixed(1)}</td>
                   <td><span className={`status-pill status-pill--${s.payment_status === 'PAID' ? 'ok' : 'low'}`}>{s.payment_status}</span></td>
                   <td>
                     <button onClick={() => generateReceipt(s)} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}} title="Download Receipt">📄</button>
@@ -616,7 +776,7 @@ export default function Sales() {
       <ConfirmationModal 
         show={showConfirm}
         title="Confirm Transaction"
-        message={`Are you sure you want to record this sale for GHS ${total.toFixed(2)}? This will deduct items from stock and create a journal entry.`}
+        message={`Are you sure you want to record this sale for GHS ${total.toFixed(1)}? This will deduct items from stock and create a journal entry.`}
         confirmText="Yes, Record Sale"
         onConfirm={handleSubmit}
         onCancel={() => setShowConfirm(false)}

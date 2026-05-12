@@ -207,23 +207,66 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
--- Create Debtors View (SECURITY INVOKER)
+-- Create Debtors/Depositors View (SECURITY INVOKER)
 DROP VIEW IF EXISTS public.deposits;
 CREATE VIEW public.deposits 
 WITH (security_invoker = true)
 AS
 SELECT 
     c.id as customer_id,
-    c.full_name as customer_name,
+    c.name as customer_name,
     c.phone,
-    SUM(s.total_amount - s.amount_paid) as total_debt,
+    COALESCE(SUM(s.total_amount - s.amount_paid), 0) as total_balance,
     MAX(s.created_at) as last_sale_date,
-    COUNT(s.id) as pending_sales_count
-FROM public.sales s
-JOIN public.customers c ON s.customer_id = c.id
-WHERE s.payment_status = 'pending'
-GROUP BY c.id, c.full_name, c.phone;
+    COUNT(s.id) FILTER (WHERE s.payment_status = 'DEPOSIT') as pending_sales_count
+FROM public.customers c
+JOIN public.sales s ON s.customer_id = c.id
+GROUP BY c.id, c.name, c.phone
+HAVING SUM(s.total_amount - s.amount_paid) != 0;
 
 GRANT SELECT ON public.deposits TO authenticated;
 GRANT SELECT ON public.deposits TO anon;
 GRANT SELECT ON public.deposits TO service_role;
+
+-- 4. NEW FUNCTION: RECORD PURE DEPOSIT (Money only, no stock)
+CREATE OR REPLACE FUNCTION public.record_pure_deposit(
+  p_customer_name text,
+  p_customer_phone text,
+  p_amount numeric,
+  p_recorded_by text,
+  p_payment_method text DEFAULT 'Cash'
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_customer_id BIGINT;
+  v_sale_id UUID;
+BEGIN
+  -- Find or create customer
+  SELECT id INTO v_customer_id FROM public.customers WHERE phone = p_customer_phone LIMIT 1;
+  IF v_customer_id IS NULL THEN
+    INSERT INTO public.customers (name, phone) VALUES (p_customer_name, p_customer_phone) RETURNING id INTO v_customer_id;
+  END IF;
+
+  -- Insert "Pure Deposit" Sale (No items, negative balance = credit)
+  INSERT INTO public.sales (
+    customer_id, customer_name, total_amount, amount_paid, 
+    balance_due, payment_status, payment_method, recorded_by, notes
+  )
+  VALUES (
+    v_customer_id, p_customer_name, 0, ROUND(p_amount, 1), -ROUND(p_amount, 1), 'PAID', p_payment_method, p_recorded_by, 'Pure Deposit (Prepayment)'
+  ) RETURNING id INTO v_sale_id;
+
+  -- Journaling
+  INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
+  VALUES (v_sale_id, pg_catalog.upper(p_payment_method), ROUND(p_amount, 1), 'Pure Deposit received');
+  
+  INSERT INTO public.journal_entries (sale_id, account_type, credit, description) 
+  VALUES (v_sale_id, 'CUSTOMER_DEPOSIT', ROUND(p_amount, 1), 'Credit added to customer account');
+
+  RETURN v_sale_id;
+END;
+$$;

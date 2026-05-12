@@ -9,9 +9,12 @@ export default function Expenses() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
 
+  const [loading, setLoading] = useState(true);
+
   const fetchExpenses = async () => {
     const { data } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
     if (data) setExpenses(data);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   useEffect(() => {
@@ -46,6 +49,26 @@ export default function Expenses() {
 
   const totalExpenses = expenses.reduce((a, e) => a + parseFloat(e.amount), 0);
 
+  if (loading) {
+    return (
+      <div className="expenses-container" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="skeleton" style={{ width: 300, height: 40 }} />
+          <div style={{ display:'flex', gap:10 }}>
+            <div className="skeleton" style={{ width: 150, height: 45 }} />
+            <div className="skeleton" style={{ width: 140, height: 40 }} />
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          <div className="skeleton" style={{ height: 45, marginBottom: 20, width: '100%' }} />
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="skeleton" style={{ height: 50, marginBottom: 12, width: '100%' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
@@ -56,7 +79,7 @@ export default function Expenses() {
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
           <div className="summary-card" style={{ padding:'10px 20px', width: 'auto' }}>
             <span style={{ fontSize:12, color:'#6b7280' }}>Total: </span>
-            <span style={{ fontSize:18, fontWeight:700 }}>GHS {totalExpenses.toFixed(2)}</span>
+            <span style={{ fontSize:18, fontWeight:700 }}>GHS {totalExpenses.toFixed(1)}</span>
           </div>
           <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Record Expense'}</button>
         </div>
@@ -99,7 +122,7 @@ export default function Expenses() {
                   <td style={{fontSize:12, color:'#6b7280'}}>{new Date(e.created_at).toLocaleDateString()}</td>
                   <td style={{fontWeight:500}}>{e.description}</td>
                   <td><span style={{background:'#f3f4f6', padding:'2px 8px', borderRadius:4, fontSize:12}}>{e.category}</span></td>
-                  <td style={{fontWeight:600}}>GHS {parseFloat(e.amount).toFixed(2)}</td>
+                  <td style={{fontWeight:600}}>GHS {parseFloat(e.amount).toFixed(1)}</td>
                   <td>{e.recorded_by}</td>
                 </tr>
               ))}

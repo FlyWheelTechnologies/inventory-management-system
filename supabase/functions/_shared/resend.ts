@@ -10,8 +10,7 @@ export interface EmailPayload {
 export async function sendEmail(payload: EmailPayload): Promise<void> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
   if (!RESEND_API_KEY) {
-    console.error('RESEND_API_KEY is not set');
-    return;
+    throw new Error('RESEND_API_KEY is not set in Supabase Secrets');
   }
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -21,7 +20,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: 'FlorzyAngel Enterprise <onboarding@resend.dev>', // ← Use verified domain here later
+      from: 'FlorzyAngel Enterprise <onboarding@resend.dev>',
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
@@ -30,8 +29,8 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('Resend error:', err);
-  } else {
-    console.log(`✅ Email sent to ${payload.to}: ${payload.subject}`);
+    throw new Error(`Resend API Error: ${err}`);
   }
+
+  console.log(`✅ Email sent to ${payload.to}: ${payload.subject}`);
 }
