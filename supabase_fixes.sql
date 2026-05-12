@@ -128,51 +128,115 @@ CREATE POLICY "Allow authenticated insert" ON public.logs FOR INSERT TO authenti
 CREATE POLICY "Allow authenticated select" ON public.logs FOR SELECT TO authenticated USING (true);
 
 -- 5. Fix search_path for record_sale_transaction function
-CREATE OR REPLACE FUNCTION public.record_sale_transaction(p_customer_name text, p_amount_paid numeric, p_payment_method text, p_items jsonb)
+-- 5. IMPROVED RECORD SALE TRANSACTION (1dp rounding + tax)
+CREATE OR REPLACE FUNCTION public.record_sale_transaction(
+  p_customer_id integer,
+  p_customer_name text, 
+  p_total_amount numeric,
+  p_amount_paid numeric, 
+  p_payment_method text, 
+  p_payment_status text,
+  p_items jsonb,
+  p_recorded_by text,
+  p_tax_percentage numeric DEFAULT 0,
+  p_tax_inclusive boolean DEFAULT TRUE,
+  p_credit_used numeric DEFAULT 0
+)
  RETURNS uuid
  LANGUAGE plpgsql
  SET search_path = ''
 AS $function$
 DECLARE
   v_sale_id UUID;
-  v_total_amount NUMERIC := 0;
+  v_tax_amount NUMERIC := 0;
+  v_net_amount NUMERIC := 0;
+  v_total_with_tax NUMERIC;
   v_item RECORD;
 BEGIN
-  -- Calculate Total
-  FOR v_item IN SELECT * FROM pg_catalog.jsonb_to_recordset(p_items) AS x(product_id UUID, quantity NUMERIC, unit_price NUMERIC)
-  LOOP
-    v_total_amount := v_total_amount + (v_item.quantity * v_item.unit_price);
-  END LOOP;
+  -- Tax Calculation
+  IF p_tax_inclusive THEN
+    v_net_amount := ROUND(p_total_amount / (1 + (p_tax_percentage / 100)), 1);
+    v_tax_amount := ROUND(p_total_amount - v_net_amount, 1);
+    v_total_with_tax := ROUND(p_total_amount, 1);
+  ELSE
+    v_tax_amount := ROUND(p_total_amount * (p_tax_percentage / 100), 1);
+    v_net_amount := ROUND(p_total_amount, 1);
+    v_total_with_tax := ROUND(p_total_amount + v_tax_amount, 1);
+  END IF;
 
-  -- 1. Insert Sale
-  INSERT INTO public.sales (customer_name, total_amount, amount_paid, balance_due, payment_status, payment_method)
-  VALUES (p_customer_name, v_total_amount, p_amount_paid, v_total_amount - p_amount_paid,
-    CASE WHEN p_amount_paid >= v_total_amount THEN 'PAID' WHEN p_amount_paid > 0 THEN 'PARTIAL' ELSE 'CREDIT' END,
-    p_payment_method) RETURNING id INTO v_sale_id;
+  -- Insert Sale Record
+  INSERT INTO public.sales (
+    customer_id, customer_name, total_amount, amount_paid, 
+    balance_due, payment_status, payment_method, recorded_by,
+    tax_percentage, tax_inclusive, tax_amount
+  )
+  VALUES (
+    p_customer_id, p_customer_name, 
+    v_total_with_tax, 
+    ROUND(p_amount_paid + p_credit_used, 1),
+    ROUND(v_total_with_tax - (p_amount_paid + p_credit_used), 1),
+    p_payment_status, p_payment_method, p_recorded_by,
+    p_tax_percentage, p_tax_inclusive, v_tax_amount
+  ) RETURNING id INTO v_sale_id;
 
-  -- 2. Process Items & Deduct Stock
-  FOR v_item IN SELECT * FROM pg_catalog.jsonb_to_recordset(p_items) AS x(product_id UUID, quantity NUMERIC, unit_price NUMERIC)
+  -- Process Items
+  FOR v_item IN SELECT * FROM pg_catalog.jsonb_to_recordset(p_items) AS x(product_id UUID, product_name TEXT, quantity NUMERIC, unit_price NUMERIC, subtotal NUMERIC)
   LOOP
-    INSERT INTO public.sale_items (sale_id, product_id, quantity, unit_price, subtotal)
-    VALUES (v_sale_id, v_item.product_id, v_item.quantity, v_item.unit_price, v_item.quantity * v_item.unit_price);
+    INSERT INTO public.sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal)
+    VALUES (v_sale_id, v_item.product_id, v_item.product_name, v_item.quantity, v_item.unit_price, ROUND(v_item.subtotal, 1));
     
     UPDATE public.products SET stock_quantity = stock_quantity - v_item.quantity WHERE id = v_item.product_id;
   END LOOP;
 
-  -- 3. Double-Entry Accounting
-  INSERT INTO public.journal_entries (sale_id, account_type, credit, description) VALUES (v_sale_id, 'REVENUE', v_total_amount, 'Revenue from Sale #' || v_sale_id);
+  -- Journaling
+  INSERT INTO public.journal_entries (sale_id, account_type, credit, description) 
+  VALUES (v_sale_id, 'REVENUE', v_net_amount, 'Revenue from Sale #' || v_sale_id);
   
-  IF p_amount_paid > 0 THEN
-    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) VALUES (v_sale_id, pg_catalog.upper(p_payment_method), p_amount_paid, 'Payment received');
+  IF v_tax_amount > 0 THEN
+    INSERT INTO public.journal_entries (sale_id, account_type, credit, description) 
+    VALUES (v_sale_id, 'TAX_PAYABLE', v_tax_amount, 'Tax collected');
   END IF;
   
-  IF (v_total_amount - p_amount_paid) > 0 THEN
-    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) VALUES (v_sale_id, 'ACCOUNTS_RECEIVABLE', v_total_amount - p_amount_paid, 'Debt recorded');
+  IF p_amount_paid > 0 THEN
+    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
+    VALUES (v_sale_id, pg_catalog.upper(p_payment_method), ROUND(p_amount_paid, 1), 'Payment received');
+  END IF;
+
+  IF p_credit_used > 0 THEN
+    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
+    VALUES (v_sale_id, 'CUSTOMER_DEPOSIT', ROUND(p_credit_used, 1), 'Applied from customer credit');
+  END IF;
+  
+  IF (v_total_with_tax - (p_amount_paid + p_credit_used)) > 0 THEN
+    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
+    VALUES (v_sale_id, 'ACCOUNTS_RECEIVABLE', ROUND(v_total_with_tax - (p_amount_paid + p_credit_used), 1), 'Debt recorded');
   END IF;
 
   RETURN v_sale_id;
 END;
 $function$;
+
+-- 6. NEW FULFILLMENT FUNCTION (Handles regular and pure deposits)
+CREATE OR REPLACE FUNCTION public.fulfill_sale(p_sale_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.sales
+  SET payment_status = CASE 
+    WHEN total_amount = 0 THEN 'PAID' 
+    WHEN balance_due <= 0 THEN 'PAID' 
+    ELSE 'PARTIAL' 
+  END,
+  notes = CASE 
+    WHEN total_amount = 0 THEN COALESCE(notes, '') || ' (Fulfilled)' 
+    ELSE notes 
+  END
+  WHERE id = p_sale_id;
+END;
+$$;
 -- =============================================
 -- STORAGE CONFIGURATION
 -- =============================================
@@ -268,5 +332,48 @@ BEGIN
   VALUES (v_sale_id, 'CUSTOMER_DEPOSIT', ROUND(p_amount, 1), 'Credit added to customer account');
 
   RETURN v_sale_id;
+END;
+$$;
+
+-- 5. UPDATE PURE DEPOSIT
+CREATE OR REPLACE FUNCTION public.update_pure_deposit(
+  p_sale_id uuid,
+  p_new_amount numeric
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  -- Update Sale
+  UPDATE public.sales
+  SET amount_paid = ROUND(p_new_amount, 1),
+      balance_due = -ROUND(p_new_amount, 1)
+  WHERE id = p_sale_id AND (notes ILIKE '%Pure Deposit%' OR total_amount = 0);
+
+  -- Update Journal Entries
+  UPDATE public.journal_entries
+  SET debit = ROUND(p_new_amount, 1)
+  WHERE sale_id = p_sale_id AND account_type != 'CUSTOMER_DEPOSIT';
+
+  UPDATE public.journal_entries
+  SET credit = ROUND(p_new_amount, 1)
+  WHERE sale_id = p_sale_id AND account_type = 'CUSTOMER_DEPOSIT';
+END;
+$$;
+
+-- 6. DELETE PURE DEPOSIT
+CREATE OR REPLACE FUNCTION public.delete_pure_deposit(p_sale_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  -- Delete Journal Entries
+  DELETE FROM public.journal_entries WHERE sale_id = p_sale_id;
+  -- Delete Sale
+  DELETE FROM public.sales WHERE id = p_sale_id AND (notes ILIKE '%Pure Deposit%' OR total_amount = 0);
 END;
 $$;

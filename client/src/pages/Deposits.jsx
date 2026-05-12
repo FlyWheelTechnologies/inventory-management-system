@@ -25,7 +25,13 @@ export default function Deposits() {
       return;
     }
     setExpandedCustomerId(cid);
-    const { data } = await supabase.from('sales').select('*').eq('customer_id', cid).eq('payment_status', 'DEPOSIT').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('customer_id', cid)
+      .or('payment_status.eq.DEPOSIT,notes.ilike.%Pure Deposit%,total_amount.eq.0')
+      .not('notes', 'ilike', '%(Fulfilled)%') // Hide already fulfilled pure deposits
+      .order('created_at', { ascending: false });
     setCustomerOrders(data || []);
   };
 
@@ -132,8 +138,11 @@ export default function Deposits() {
                               {customerOrders.map(order => (
                                 <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' }}>
                                   <div>
-                                    <div style={{ fontSize: 13, fontWeight: 600 }}>Order #INV-{String(order.invoice_no || order.id).slice(-6)}</div>
-                                    <div style={{ fontSize: 11, color: '#6b7280' }}>{new Date(order.created_at).toLocaleString()} • GHS {(parseFloat(order.total_amount) || 0).toFixed(1)}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{order.total_amount === 0 ? '💰 Pure Prepayment' : `Order #INV-${String(order.invoice_no || order.id).slice(-6)}`}</div>
+                                    <div style={{ fontSize: 11, color: '#6b7280' }}>
+                                      {new Date(order.created_at).toLocaleString()} • GHS {(parseFloat(order.total_amount === 0 ? order.amount_paid : order.total_amount) || 0).toFixed(1)}
+                                      {order.total_amount === 0 && <span style={{ marginLeft: 8, color: '#059669', fontWeight: 700 }}>(Credit Added)</span>}
+                                    </div>
                                   </div>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); handleFulfill(order.id); }}
