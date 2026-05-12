@@ -53,9 +53,9 @@ export default function Sales() {
   const [notes, setNotes] = useState('');
   const [isDeposit, setIsDeposit] = useState(false);
 
-  const filteredCustomers = customerSearch.length > 1
+  const filteredCustomers = customerSearch.length > 0
     ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
-    : [];
+    : customers;
 
   // --- Draft Persistence ---
   useEffect(() => {
@@ -398,19 +398,23 @@ export default function Sales() {
                       <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
                         <div 
                           onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
-                          style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6', fontWeight:600, color:'#3b82f6' }}
+                          style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
                         >
-                          👤 Generic Walk-in Customer
+                          👤 Generic Walk-in Customer (Default)
                         </div>
-                        {filteredCustomers.map(c => (
+                        {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
                           <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
                             style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
                             onMouseEnter={e => e.target.style.background='#f3f4f6'}
                             onMouseLeave={e => e.target.style.background='#fff'}
                           >
-                            <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `(${c.phone})` : ''}
+                            <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `— ${c.phone}` : ''}
                           </div>
-                        ))}
+                        )) : (
+                          <div style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: '#9ca3af' }}>
+                            No existing customers found matching "{customerSearch}"
+                          </div>
+                        )}
                         {customerSearch.length > 0 && !customerId && !filteredCustomers.find(c => c.name.toLowerCase() === customerSearch.toLowerCase()) && (
                           <div style={{ padding:'10px 12px', fontSize:12, color:'#059669', background:'#ecfdf5' }}>
                             ✨ Add "{customerSearch}" as new customer
