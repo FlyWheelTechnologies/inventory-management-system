@@ -10,8 +10,14 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) navigate("/dashboard");
+  }, [user, navigate]);
 
   const handleStart = () => {
     setView("login");
@@ -42,8 +48,8 @@ export default function Login() {
       if (error) {
         setErrorMsg(error.message);
       } else {
-        console.log("Login successful, letting context handle redirect...");
-        // AuthContext onAuthStateChange will detect this and navigate
+        console.log("Login successful, navigating...");
+        navigate("/dashboard");
       }
     } catch (err) {
       console.error("Login crash:", err);
@@ -100,14 +106,24 @@ export default function Login() {
 
           <div className="form-group">
             <label>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                style={{ width: '100%' }}
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', fontSize: '18px', cursor: 'pointer', padding: '5px' }}
+              >
+                {showPassword ? "👁️‍🗨️" : "👁️"}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="auth-btn" disabled={loading}>
