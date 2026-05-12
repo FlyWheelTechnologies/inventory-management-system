@@ -541,8 +541,7 @@ export default function Sales() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Success Toast */}
       {toast && (
@@ -557,7 +556,7 @@ export default function Sales() {
           `}</style>
         </div>
       )}
-      )}
+
 
       <div className="table-card">
         <div className="table-card__header">

@@ -12,6 +12,9 @@ export default function JournalEntries() {
 
   const [viewMode, setViewMode] = useState("Daily"); // Daily, Monthly, AllTime
   const [itemsToShow, setItemsToShow] = useState(20);
+  const [journal, setJournal] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
 
   const fetchData = async () => {
     const [journalRes, salesRes, expensesRes] = await Promise.all([

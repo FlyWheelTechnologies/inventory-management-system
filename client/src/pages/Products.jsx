@@ -225,7 +225,7 @@ export default function Products() {
               </div>
             )}
           </div>
-          <div style={{ padding:0 }}>
+          <form onSubmit={handleSubmit} style={{ padding:0 }}>
             {/* SECTION 1: BASIC INFO */}
             <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
               <h4 style={secH}>01. Basic Information</h4>
@@ -284,8 +284,8 @@ export default function Products() {
                 </div>
               </div>
             </div>
-          </div>
         </form>
+      </div>
       )}
 
       {/* Success Toast */}
