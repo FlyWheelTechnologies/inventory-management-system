@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlorzyAngel Enterprise - Software Brochure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary: #f97316;
+            --secondary: #374151;
+            --bg: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; color: var(--text); line-height: 1.6; }
+
+        .brochure-container {
+            width: 1000px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+        }
+
+        .page {
+            width: 1000px;
+            height: 1414px; /* A4 Ratio */
+            position: relative;
+            overflow: hidden;
+            padding: 80px;
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+        }
+
+        /* Hero Page */
+        .hero-page {
+            background: linear-gradient(135deg, #374151 0%, #111827 100%);
+            color: white;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .logo-main { width: 180px; margin-bottom: 40px; border-radius: 20px; }
+        .hero-title { font-size: 56px; font-weight: 800; letter-spacing: -2px; line-height: 1; margin-bottom: 20px; }
+        .hero-subtitle { font-size: 24px; color: var(--primary); font-weight: 600; margin-bottom: 40px; }
+        .hero-img { width: 500px; margin-top: 20px; border-radius: 30px; box-shadow: 0 30px 60px rgba(0,0,0,0.3); }
+
+        /* Feature Pages */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 60px; border-bottom: 2px solid #f3f4f6; padding-bottom: 20px; }
+        .header h2 { font-size: 32px; font-weight: 800; color: var(--secondary); }
+        .header .logo-small { height: 40px; }
+
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; flex-grow: 1; }
+        .feature-text h3 { font-size: 28px; color: var(--primary); margin-bottom: 20px; font-weight: 700; }
+        .feature-text p { font-size: 18px; color: var(--muted); margin-bottom: 24px; }
+        
+        .feature-card { background: #f9fafb; padding: 30px; border-radius: 20px; border: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .feature-card h4 { font-size: 20px; margin-bottom: 10px; color: var(--secondary); font-weight: 700; }
+        .feature-card p { font-size: 15px; margin: 0; }
+
+        .image-box { border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.05); background: #eee; }
+        .image-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Footer */
+        .footer { margin-top: auto; padding-top: 40px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .footer-tag { font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; }
+        .footer-url { font-size: 14px; color: var(--muted); font-weight: 600; }
+
+        .controls { position: fixed; top: 20px; right: 20px; z-index: 100; display: flex; gap: 10px; }
+        .btn { padding: 12px 24px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(249, 115, 22, 0.4); }
+
+        @media print {
+            .controls { display: none; }
+            body { background: white; }
+            .brochure-container { box-shadow: none; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls no-print">
+        <button class="btn btn-primary" id="download-btn">Download PDF</button>
+    </div>
+
+    <div class="brochure-container" id="content">
+        <!-- PAGE 1: HERO -->
+        <div class="page hero-page">
+            <img src="C:\Users\gokro\.gemini\antigravity\brain\14056c39-36b2-41ac-bb65-eb4e46a6fb65\flywheel_logo_1778559819734.png" class="logo-main" alt="Logo">
+            <h1 class="hero-title">FlorzyAngel Enterprise</h1>
+            <p class="hero-subtitle">Next-Generation Stock & Accounting Suite</p>
+            <div style="height: 2px; width: 100px; background: var(--primary); margin: 20px auto 40px;"></div>
+            <img src="C:\Users\gokro\.gemini\antigravity\brain\14056c39-36b2-41ac-bb65-eb4e46a6fb65\shop_attendant_cartoon_1778559838145.png" class="hero-img" alt="Shop Attendant">
+            <div style="margin-top: 60px; font-weight: 600; opacity: 0.8;">Powered by Flywheel Technologies</div>
+        </div>
+
+        <!-- PAGE 2: INVENTORY -->
+        <div class="page">
+            <div class="header">
+                <h2>01. Smart Inventory</h2>
+                <img src="C:\Users\gokro\.gemini\antigravity\brain\14056c39-36b2-41ac-bb65-eb4e46a6fb65\flywheel_logo_1778559819734.png" class="logo-small">
+            </div>
+            <div class="feature-grid">
+                <div class="feature-text">
+                    <h3>Master Your Stock</h3>
+                    <p>FlorzyAngel gives you a bird's-eye view of your entire inventory. From real-time stock levels to low-stock alerts, you stay ahead of the curve.</p>
+                    <div class="feature-card">
+                        <h4>Real-Time Tracking</h4>
+                        <p>Instant updates across all devices as soon as a sale is recorded or new stock is added.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Automated Alerts</h4>
+                        <p>Receive notifications when stock hits critical levels, ensuring you never miss a sale.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Bulk Management</h4>
+                        <p>Easily update prices, categories, and descriptions in seconds.</p>
+                    </div>
+                </div>
+                <div class="image-box">
+                    <img src="C:\Users\gokro\.gemini\antigravity\brain\14056c39-36b2-41ac-bb65-eb4e46a6fb65\feature_cards_isometric_1778559857528.png">
+                </div>
+            </div>
+            <div class="footer">
+                <div class="footer-tag">Inventory Control</div>
+                <div class="footer-url">bookflywheel.com</div>
+            </div>
+        </div>
+
+        <!-- PAGE 3: SALES & TAX -->
+        <div class="page">
+            <div class="header">
+                <h2>02. Sales & Accounting</h2>
+                <img src="C:\Users\gokro\.gemini\antigravity\brain\14056c39-36b2-41ac-bb65-eb4e46a6fb65\flywheel_logo_1778559819734.png" class="logo-small">
+            </div>
+            <div class="feature-grid">
+                <div class="image-box">
+                    <div style="background: var(--secondary); height: 100%; padding: 40px; display: flex; flex-direction: column; justify-content: center; color: white;">
+                        <h1 style="font-size: 60px; color: var(--primary); margin-bottom: 20px;">Tax<br>Ready.</h1>
+                        <p style="font-size: 20px; opacity: 0.8;">Automated GHS tax splits for every single transaction recorded.</p>
+                    </div>
+                </div>
+                <div class="feature-text">
+                    <h3>Accounting Simplified</h3>
+                    <p>Gone are the days of manual spreadsheets. Our built-in taxation engine handles the math for you.</p>
+                    <div class="feature-card">
+                        <h4>Tax-Inclusive Pricing</h4>
+                        <p>Toggle between inclusive and exclusive tax modes with a single click. Support for 12.5%, 15%, and 21.9% presets.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Multi-View Ledger</h4>
+                        <p>Drill down into Daily, Monthly, or All-Time records with professional vertical pagination.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Digital Receipts</h4>
+                        <p>Professional receipts sent instantly to your customers with full tax breakdowns.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="footer-tag">Financial Suite</div>
+                <div class="footer-url">bookflywheel.com</div>
+            </div>
+        </div>
+
+        <!-- PAGE 4: CRM & ANALYTICS -->
+        <div class="page">
+            <div class="header">
+                <h2>03. CRM & Insights</h2>
+                <img src="C:\Users\gokro\.gemini\antigravity\brain\14056c39-36b2-41ac-bb65-eb4e46a6fb65\flywheel_logo_1778559819734.png" class="logo-small">
+            </div>
+            <div class="feature-grid">
+                <div class="feature-text">
+                    <h3>Know Your Customer</h3>
+                    <p>Build lasting relationships with integrated customer profiles and purchase histories.</p>
+                    <div class="feature-card">
+                        <h4>Customer Profiles</h4>
+                        <p>Track loyal customers, manage balances, and view transaction history in one place.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Business Insights</h4>
+                        <p>Deep-dive analytics show your best-selling products and peak revenue times.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Audit-Ready Exports</h4>
+                        <p>Standardized CSV exports ready for your accountant or tax auditor.</p>
+                    </div>
+                </div>
+                <div class="image-box" style="display: flex; align-items: center; justify-content: center; background: #f3f4f6;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 48px; color: var(--secondary); margin-bottom: 10px;">99.9%</h2>
+                        <p style="font-weight: 700; color: var(--primary);">Uptime Guaranteed</p>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="footer-tag">Customer Intelligence</div>
+                <div class="footer-url">bookflywheel.com</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('download-btn').addEventListener('click', () => {
+            const element = document.getElementById('content');
+            const opt = {
+                margin:       0,
+                filename:     'FlorzyAngel_Software_Brochure.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'px', format: [1000, 1414], orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        });
+    </script>
+</body>
+</html>

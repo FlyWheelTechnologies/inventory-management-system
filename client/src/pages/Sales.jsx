@@ -42,6 +42,7 @@ export default function Sales() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null); // { message, type }
   
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
@@ -126,25 +127,20 @@ export default function Sales() {
     doc.setFont(undefined, 'bold');
     doc.text('FlorzyAngel Enterprise', 40, 10, { align: 'center' });
     
-    doc.setFontSize(10);
-    doc.setTextColor(249, 115, 22); // Orange
-    doc.text('Inventory Management System', 40, 15, { align: 'center' });
-    
-    doc.setDrawColor(249, 115, 22); // Orange Line
-    doc.line(5, 18, 75, 18);
+    doc.line(5, 13, 75, 13);
     
     // Transaction Details
     doc.setFontSize(8);
     doc.setTextColor(55, 65, 81);
     doc.setFont(undefined, 'bold');
-    doc.text(`INVOICE: #INV-${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}`, 5, 24);
+    doc.text(`INVOICE: #INV-${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}`, 5, 19);
     doc.setFont(undefined, 'normal');
-    doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 28);
-    doc.text(`Customer: ${sale.customer_name}`, 5, 32);
-    doc.text(`Recorded By: ${sale.recorded_by || 'Staff'}`, 5, 36);
+    doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 23);
+    doc.text(`Customer: ${sale.customer_name}`, 5, 27);
+    doc.text(`Recorded By: ${sale.recorded_by || 'Staff'}`, 5, 31);
     
     autoTable(doc, {
-      startY: 40,
+      startY: 35,
       margin: { left: 5, right: 5 },
       head: [['ITEM', 'QTY', 'PRICE', 'TOTAL']],
       body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price.toFixed(2), i.subtotal.toFixed(2)]),
@@ -169,9 +165,9 @@ export default function Sales() {
     doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
     doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(2)}`, 75, finalY + 9, { align: 'right' });
     
-    doc.setTextColor(107, 114, 128);
-    doc.setFontSize(7);
-    doc.text('Powered by bookflywheel.com', 40, finalY + 18, { align: 'center' });
+    doc.setTextColor(156, 163, 175);
+    doc.setFontSize(6);
+    doc.text('powered by bookflywheel.com', 40, 146, { align: 'center' });
     
     doc.save(`Receipt_INV_${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}.pdf`);
   };
@@ -239,22 +235,8 @@ export default function Sales() {
 
       // Clear draft on success
       clearDraft();
-      setShowForm(false);
-      setShowConfirm(false);
-      fetchData();
-      
-      if (window.confirm("Sale recorded! Download receipt?")) {
-        // Fetch the created sale to get the invoice number
-        const { data: fetchedSale } = await supabase
-          .from('sales')
-          .select('*')
-          .eq('customer_name', customerName)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        generateReceipt(fetchedSale || { id: 'NEW', customer_name: customerName, total_amount: total, amount_paid: payloadAmountPaid, balance_due: balance });
-      }
+      setToast({ message: "Sale recorded successfully!", type: "success" });
+      setTimeout(() => setToast(null), 4000);
     } catch (err) {
       console.error(err);
       setError(`Transaction Failed: ${err.message || 'Network issue'}. Your data is safe in this draft.`);
@@ -397,176 +379,184 @@ export default function Sales() {
       )}
 
       {showForm && (
-        <div className="table-card" style={{ marginBottom:24 }}>
-          <div className="table-card__header">
-            <h3 className="table-card__title">Record New Sale</h3>
-            <span style={{ fontSize: '11px', color: '#6b7280' }}>Fields marked * are required</span>
-          </div>
-          <div style={{ padding:20 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
-              <div style={{ position: 'relative' }}>
-                <label style={lbl}>Customer Selection *</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <input
-                      style={{ ...inp, border: customerId ? '1.5px solid #3b82f6' : '1px solid #ddd' }}
-                      value={customerSearch}
-                      onChange={handleCustomerInputChange}
-                      onFocus={() => setShowCustomerSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
-                      placeholder="Search existing or type new name..."
-                    />
-                    {showCustomerSuggestions && (
-                      <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
-                        <div 
-                          onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
-                          style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
-                        >
-                          👤 Generic Walk-in Customer (Default)
-                        </div>
-                        {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
-                          <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
-                            style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
-                            onMouseEnter={e => e.target.style.background='#f3f4f6'}
-                            onMouseLeave={e => e.target.style.background='#fff'}
+          <div style={{ padding:0 }}>
+            {/* SECTION 1: CUSTOMER & NOTES */}
+            <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
+              <h4 style={secH}>01. Customer Information</h4>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+                <div style={{ position: 'relative' }}>
+                  <label style={lbl}>Select Customer *</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <input
+                        style={{ ...inp, border: customerId ? '1.5px solid #3b82f6' : '1px solid #ddd' }}
+                        value={customerSearch}
+                        onChange={handleCustomerInputChange}
+                        onFocus={() => setShowCustomerSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
+                        placeholder="Search existing or type new name..."
+                      />
+                      {showCustomerSuggestions && (
+                        <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
+                          <div 
+                            onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
+                            style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
                           >
-                            <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `— ${c.phone}` : ''}
+                            👤 Generic Walk-in Customer (Default)
                           </div>
-                        )) : (
-                          <div style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: '#9ca3af' }}>
-                            No existing customers found matching "{customerSearch}"
-                          </div>
-                        )}
-                        {customerSearch.length > 0 && !customerId && !filteredCustomers.find(c => c.name.toLowerCase() === customerSearch.toLowerCase()) && (
-                          <div style={{ padding:'10px 12px', fontSize:12, color:'#059669', background:'#ecfdf5' }}>
-                            ✨ Add "{customerSearch}" as new customer
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
+                            <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
+                              style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
+                              onMouseEnter={e => e.target.style.background='#f3f4f6'}
+                              onMouseLeave={e => e.target.style.background='#fff'}
+                            >
+                              <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `— ${c.phone}` : ''}
+                            </div>
+                          )) : (
+                            <div style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: '#9ca3af' }}>
+                              No matching customers
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
+                      style={{ padding: '0 12px', borderRadius: 6, border: '1px solid #ddd', background: !customerId && customerName === 'Walk-in Customer' ? '#f3f4f6' : '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Reset
+                    </button>
                   </div>
-                  <button 
-                    type="button" 
-                    onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); }}
-                    style={{ padding: '0 12px', borderRadius: 6, border: '1px solid #ddd', background: !customerId && customerName === 'Walk-in Customer' ? '#f3f4f6' : '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    Reset to Walk-in
-                  </button>
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
+                    Active: <span style={{ color: '#111827' }}>{customerName}</span> {customerId && ' (Linked Account)'}
+                  </div>
                 </div>
-                <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
-                  Current: <span style={{ color: '#111827' }}>{customerName}</span> {customerId && ' (Saved)'}
+                <div>
+                  <label style={lbl}>Internal Sale Notes</label>
+                  <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / special packaging..." />
                 </div>
-              </div>
-              <div>
-                <label style={lbl}>Internal Notes</label>
-                <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / specific request..." />
               </div>
             </div>
 
-            <h4 style={{ fontSize:14, fontWeight:600, marginBottom:10 }}>Line Items <InfoTip text="The individual items being sold in this transaction." /></h4>
-            <table className="stock-table" style={{ marginBottom:16 }}>
-              <thead><tr><th>Product</th><th>Qty</th><th>Unit Price (GHS)</th><th>Subtotal</th><th></th></tr></thead>
-              <tbody>
-                {items.map((item, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <select style={{...inp, minWidth:200}} value={item.product_id} onChange={e => {
+            {/* SECTION 2: ITEMS */}
+            <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
+              <h4 style={secH}>02. Items Selection</h4>
+              <table className="stock-table" style={{ marginBottom:16 }}>
+                <thead><tr><th>Product</th><th>Qty</th><th>Unit Price (GHS)</th><th>Subtotal</th><th></th></tr></thead>
+                <tbody>
+                  {items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <select style={{...inp, minWidth:200}} value={item.product_id} onChange={e => {
+                          const newItems = [...items];
+                          const val = e.target.value;
+                          newItems[idx].product_id = val;
+                          const prod = products.find(p => p.id === parseInt(val) || p.id === val);
+                          if (prod) { newItems[idx].product_name = prod.name; newItems[idx].unit_price = prod.selling_price; }
+                          setItems(newItems);
+                        }}>
+                          <option value="">Select product...</option>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.item_code} — {p.name} ({p.stock_quantity} {p.selling_uom}s)</option>)}
+                        </select>
+                      </td>
+                      <td><input style={{...inp, width:80}} type="number" min="1" value={item.quantity} onChange={e => {
                         const newItems = [...items];
-                        const val = e.target.value;
-                        newItems[idx].product_id = val;
-                        const prod = products.find(p => p.id === parseInt(val) || p.id === val);
-                        if (prod) { newItems[idx].product_name = prod.name; newItems[idx].unit_price = prod.selling_price; }
+                        newItems[idx].quantity = parseFloat(e.target.value)||0;
                         setItems(newItems);
-                      }}>
-                        <option value="">Select product...</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.item_code} — {p.name} ({p.stock_quantity} {p.selling_uom}s)</option>)}
-                      </select>
-                    </td>
-                    <td><input style={{...inp, width:80}} type="number" min="1" value={item.quantity} onChange={e => {
-                      const newItems = [...items];
-                      newItems[idx].quantity = parseFloat(e.target.value)||0;
-                      setItems(newItems);
-                    }} /></td>
-                    <td><input style={{...inp, width:100}} type="number" step="0.01" value={item.unit_price} onChange={e => {
-                      const newItems = [...items];
-                      newItems[idx].unit_price = parseFloat(e.target.value)||0;
-                      setItems(newItems);
-                    }} /></td>
-                    <td style={{fontWeight:600}}>GHS {(item.quantity * item.unit_price).toFixed(2)}</td>
-                    <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{background:'#ef4444', color:'#fff', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button type="button" onClick={() => setItems([...items, { product_id:'', product_name:'', quantity:1, unit_price:0 }])} style={{background:'#f3f4f6', border:'1px solid #ddd', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:13, marginBottom:20}}>+ Add Item</button>
-
-            {/* Deposit Toggle */}
-            <div style={{ display:'flex', alignItems:'center', gap:12, margin:'12px 0', padding:'12px 16px', background: isDeposit ? '#ecfdf5' : '#eff6ff', borderRadius:10, border: `1.5px solid ${isDeposit ? '#10b981' : '#3b82f6'}` }}>
-              <button
-                type="button"
-                onClick={() => setIsDeposit(!isDeposit)}
-                style={{ background: isDeposit ? '#10b981' : '#3b82f6', color:'#fff', border:'none', borderRadius:20, padding:'6px 18px', fontWeight:700, cursor:'pointer', fontSize:13, transition:'all 0.2s' }}
-              >
-                {isDeposit ? '✓ Marked as Deposit' : '📥 Mark as Deposit'}
-              </button>
-              <span style={{ fontSize:12, color: isDeposit ? '#065f46' : '#1e40af' }}>
-                {isDeposit
-                  ? 'Payment held as advance deposit. Revenue recorded when order is fulfilled.'
-                  : 'Toggle this if the customer is paying in advance for a future order.'}
-              </span>
+                      }} /></td>
+                      <td><input style={{...inp, width:100}} type="number" step="0.01" value={item.unit_price} onChange={e => {
+                        const newItems = [...items];
+                        newItems[idx].unit_price = parseFloat(e.target.value)||0;
+                        setItems(newItems);
+                      }} /></td>
+                      <td style={{fontWeight:600}}>GHS {(item.quantity * item.unit_price).toFixed(2)}</td>
+                      <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{background:'#f3f4f6', color:'#ef4444', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button type="button" onClick={() => setItems([...items, { product_id:'', product_name:'', quantity:1, unit_price:0 }])} style={{background:'#f3f4f6', border:'1px solid #ddd', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:13}}>+ Add Item Row</button>
             </div>
 
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:14, padding:16, background:'#f9fafb', borderRadius:10 }}>
-              <div>
-                <label style={lbl}>Subtotal</label>
-                <p style={{fontSize:18, fontWeight:700}}>GHS {total.toFixed(2)}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                  <select style={{ ...inp, padding: '4px', fontSize: '12px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
-                    <option value="0">0% Tax</option>
-                    <option value="12.5">12.5% (Flat)</option>
-                    <option value="15">15% (VAT)</option>
-                    <option value="21.9">21.9% (Effective)</option>
+            {/* SECTION 3: TOTALS & PAYMENT */}
+            <div style={{ padding: 20 }}>
+              <h4 style={secH}>03. Totals & Payment</h4>
+              
+              <div style={{ display:'flex', alignItems:'center', gap:12, margin:'0 0 20px', padding:'12px 16px', background: isDeposit ? '#ecfdf5' : '#eff6ff', borderRadius:10, border: `1.5px solid ${isDeposit ? '#10b981' : '#3b82f6'}` }}>
+                <button type="button" onClick={() => setIsDeposit(!isDeposit)} style={{ background: isDeposit ? '#10b981' : '#3b82f6', color:'#fff', border:'none', borderRadius:20, padding:'6px 18px', fontWeight:700, cursor:'pointer', fontSize:13 }}>
+                  {isDeposit ? '✓ Marked as Deposit' : '📥 Mark as Deposit'}
+                </button>
+                <span style={{ fontSize:12, color: isDeposit ? '#065f46' : '#1e40af' }}>{isDeposit ? 'Payment held as advance deposit. Items stay in stock reservation.' : 'Toggle this if customer is paying in advance.'}</span>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr 1fr', gap:20, padding:20, background:'#f9fafb', borderRadius:12, border: '1px solid #e5e7eb' }}>
+                <div>
+                  <label style={lbl}>Tax Options</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <select style={{ ...inp, padding: '6px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
+                      <option value="0">0% No Tax</option>
+                      <option value="12.5">12.5% Flat</option>
+                      <option value="15">15% VAT</option>
+                      <option value="21.9">21.9% Effective</option>
+                    </select>
+                    <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4, whiteSpace:'nowrap' }}>
+                      <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
+                    </label>
+                  </div>
+                  <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {taxAmount.toFixed(2)}</div>
+                </div>
+                <div>
+                  <label style={lbl}>Grand Total</label>
+                  <p style={{fontSize:24, fontWeight:800, color: '#111827'}}>GHS {grandTotal.toFixed(2)}</p>
+                </div>
+                <div>
+                  <label style={lbl}>{isDeposit ? 'Deposit Amt' : 'Paid Amt'} *</label>
+                  <input style={{...inp, fontSize:16, fontWeight:700, border: '2px solid #3b82f6'}} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
+                </div>
+                <div>
+                  <label style={lbl}>Pay Method</label>
+                  <select style={{...inp, fontWeight:600}} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                    <option value="Cash">💵 Cash</option>
+                    <option value="Momo">📱 Momo</option>
+                    <option value="Bank">🏦 Bank</option>
                   </select>
-                  <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
-                  </label>
                 </div>
               </div>
-              <div>
-                <label style={lbl}>Tax Amount</label>
-                <p style={{fontSize:18, fontWeight:700, color: '#6b7280'}}>GHS {taxAmount.toFixed(2)}</p>
-              </div>
-              <div>
-                <label style={lbl}>Grand Total</label>
-                <p style={{fontSize:22, fontWeight:700, color: '#f97316'}}>GHS {grandTotal.toFixed(2)}</p>
-              </div>
-              <div>
-                <label style={lbl}>{isDeposit ? 'Deposit Amount' : 'Amount Paid'}</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={inp} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
+
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:20 }}>
+                <div style={{ display:'flex', gap: 20 }}>
+                  <div>
+                    <label style={lbl}>Subtotal</label>
+                    <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {total.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
+                    <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(2)}</p>
+                  </div>
                 </div>
+                <button type="button" onClick={() => setShowConfirm(true)} className="quick-action-btn" style={{ width:'280px', height:'50px', fontSize:16, background: isDeposit ? '#10b981' : undefined }}>
+                  {isDeposit ? '📥 Record Deposit' : 'Confirm & Complete Sale'}
+                </button>
               </div>
             </div>
-
-            <div style={{ marginTop: 14, padding: 12, background: '#f3f4f6', borderRadius: 8, display: 'flex', justifyContent: 'space-between' }}>
-              <div><label style={lbl}>Payment Method</label>
-                <select style={{...inp, width: 130}} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-                  <option value="Cash">Cash</option>
-                  <option value="Momo">Momo</option>
-                  <option value="Bank">Bank Transfer</option>
-                </select>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
-                <p style={{fontSize:20, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(2)}</p>
-              </div>
-            </div>
-
-            <button type="button" onClick={() => setShowConfirm(true)} className="quick-action-btn" style={{ marginTop:16, background: isDeposit ? '#10b981' : undefined }}>
-              {isDeposit ? '📥 Record Deposit' : 'Finish Sale & Record Payment'}
-            </button>
           </div>
         </div>
+      )}
+
+      {/* Success Toast */}
+      {toast && (
+        <div style={{ position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', background:'#064e3b', color:'#fff', padding:'12px 24px', borderRadius:'12px', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:2000, display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' }}>
+          <span style={{fontSize:18}}>✅</span>
+          <span style={{fontWeight:600}}>{toast.message}</span>
+          <style>{`
+            @keyframes slideDown { 
+              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+              to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
       )}
 
       <div className="table-card">
@@ -639,5 +629,6 @@ export default function Sales() {
 }
 
 const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13 };
+const secH = { fontSize:13, fontWeight:800, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'1px', marginBottom:16 };
+const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13, outline: 'none' };
 const miniInp = { padding:'6px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', outline: 'none' };

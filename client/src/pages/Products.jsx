@@ -39,6 +39,7 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
   const [error, setError] = useState('');
+  const [toast, setToast] = useState(null); // { message, type }
 
   // --- Draft Persistence ---
   useEffect(() => {
@@ -98,6 +99,8 @@ export default function Products() {
       setShowForm(false);
       fetchProducts();
       setError('');
+      setToast({ message: editingId ? "Product updated!" : "Product created!", type: "success" });
+      setTimeout(() => setToast(null), 4000);
     } catch (err) {
       console.error("Product save error:", err);
       setError(`Failed to save product: ${err.message || "Please check your network"}. Draft still held.`);
@@ -222,37 +225,80 @@ export default function Products() {
               </div>
             )}
           </div>
-          <form onSubmit={handleSubmit} style={{ padding:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14 }}>
-            <div>
-              <label style={lbl}>Product Name *</label>
-              <input 
-                style={inp} 
-                value={form.name} 
-                onChange={e => setForm(f=>({...f, name:e.target.value}))} 
-                required 
-                list="existing-products"
-              />
-              <datalist id="existing-products">
-                {products.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
+          <div style={{ padding:0 }}>
+            {/* SECTION 1: BASIC INFO */}
+            <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
+              <h4 style={secH}>01. Basic Information</h4>
+              <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:20 }}>
+                <div>
+                  <label style={lbl}>Product Name *</label>
+                  <input style={inp} value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value}))} required list="existing-products" />
+                  <datalist id="existing-products">
+                    {products.map(p => <option key={p.id} value={p.name} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={lbl}>Category</label>
+                  <select style={inp} value={form.category} onChange={e => handleCategoryChange(e.target.value)}>
+                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label style={lbl}>Category</label>
-              <select style={inp} value={form.category} onChange={e => handleCategoryChange(e.target.value)}>
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
+
+            {/* SECTION 2: PRICING & UNITS */}
+            <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
+              <h4 style={secH}>02. Pricing & Units</h4>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:20 }}>
+                <div>
+                  <label style={lbl}>Cost Price (GHS) *</label>
+                  <input style={inp} type="number" step="0.01" value={form.cost_price} onChange={e => setForm(f=>({...f, cost_price:e.target.value}))} required />
+                </div>
+                <div>
+                  <label style={lbl}>Selling Price (GHS) *</label>
+                  <input style={{...inp, fontWeight:700, color:'#059669', border:'1px solid #10b981'}} type="number" step="0.01" value={form.selling_price} onChange={e => setForm(f=>({...f, selling_price:e.target.value}))} required />
+                </div>
+                <div>
+                  <label style={lbl}>UOM (e.g. Bag, Pcs)</label>
+                  <input style={inp} value={form.selling_uom} onChange={e => setForm(f=>({...f, selling_uom:e.target.value}))} />
+                </div>
+              </div>
             </div>
-            <div><label style={lbl}>Buying UOM</label><input style={inp} value={form.buying_uom} onChange={e => setForm(f=>({...f, buying_uom:e.target.value}))} /></div>
-            <div><label style={lbl}>Selling UOM</label><input style={inp} value={form.selling_uom} onChange={e => setForm(f=>({...f, selling_uom:e.target.value}))} /></div>
-            <div><label style={lbl}>Conversion (1 {form.buying_uom} = ? {form.selling_uom})</label><input style={inp} type="number" value={form.conversion_factor} onChange={e => setForm(f=>({...f, conversion_factor:e.target.value}))} /></div>
-            <div><label style={lbl}>Cost Price (GHS)</label><input style={inp} type="number" step="0.01" value={form.cost_price} onChange={e => setForm(f=>({...f, cost_price:e.target.value}))} required /></div>
-            <div><label style={lbl}>Selling Price (GHS)</label><input style={inp} type="number" step="0.01" value={form.selling_price} onChange={e => setForm(f=>({...f, selling_price:e.target.value}))} required /></div>
-            <div><label style={lbl}>Stock Qty ({form.selling_uom}s)</label><input style={inp} type="number" value={form.stock_quantity} onChange={e => setForm(f=>({...f, stock_quantity:e.target.value}))} required /></div>
-            <div><label style={lbl}>Low Stock Alert Level</label><input style={inp} type="number" value={form.low_stock_threshold} onChange={e => setForm(f=>({...f, low_stock_threshold:e.target.value}))} required /></div>
-            <button type="submit" className="quick-action-btn" style={{marginTop:'auto', height:38}} disabled={saving}>
-              {saving ? 'Saving...' : (editingId ? 'Update Product' : 'Save Product')}
-            </button>
-          </form>
+
+            {/* SECTION 3: STOCK CONTROL */}
+            <div style={{ padding: 20 }}>
+              <h4 style={secH}>03. Stock Inventory</h4>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:20 }}>
+                <div>
+                  <label style={lbl}>Current Stock Qty *</label>
+                  <input style={{...inp, fontWeight:700}} type="number" value={form.stock_quantity} onChange={e => setForm(f=>({...f, stock_quantity:e.target.value}))} required />
+                </div>
+                <div>
+                  <label style={lbl}>Low Stock Alert Level</label>
+                  <input style={{...inp, border: '1px solid #fca5a5'}} type="number" value={form.low_stock_threshold} onChange={e => setForm(f=>({...f, low_stock_threshold:e.target.value}))} required />
+                </div>
+                <div style={{ alignSelf: 'end' }}>
+                  <button type="submit" className="quick-action-btn" style={{ width: '100%', height: 38 }} disabled={saving}>
+                    {saving ? 'Saving...' : (editingId ? 'Update Product' : 'Create Product')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {/* Success Toast */}
+      {toast && (
+        <div style={{ position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', background:'#064e3b', color:'#fff', padding:'12px 24px', borderRadius:'12px', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:2000, display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' }}>
+          <span style={{fontSize:18}}>✅</span>
+          <span style={{fontWeight:600}}>{toast.message}</span>
+          <style>{`
+            @keyframes slideDown { 
+              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+              to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+          `}</style>
         </div>
       )}
 
@@ -384,6 +430,7 @@ export default function Products() {
 }
 
 const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13 };
+const secH = { fontSize:13, fontWeight:800, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'1px', marginBottom:16 };
+const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13, outline: 'none' };
 const miniInp = { padding:'6px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', outline: 'none' };
 const actionBtn = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' };
