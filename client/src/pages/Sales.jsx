@@ -57,6 +57,43 @@ export default function Sales() {
     ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
     : [];
 
+  // --- Draft Persistence ---
+  useEffect(() => {
+    const savedDraft = localStorage.getItem("sales_draft");
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setCustomerId(draft.customerId || '');
+        setCustomerName(draft.customerName || 'Walk-in Customer');
+        setItems(draft.items || [{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
+        setAmountPaid(draft.amountPaid || '');
+        setPaymentMethod(draft.paymentMethod || 'Cash');
+        setNotes(draft.notes || '');
+        setIsDeposit(draft.isDeposit || false);
+        // Only show form if there was meaningful data
+        if (draft.items?.length > 0 && draft.items[0].product_id) setShowForm(true);
+      } catch (e) { console.error("Draft load error", e); }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showForm) {
+      const draft = { customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit };
+      localStorage.setItem("sales_draft", JSON.stringify(draft));
+    }
+  }, [customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit, showForm]);
+
+  const clearDraft = () => {
+    localStorage.removeItem("sales_draft");
+    setCustomerId('');
+    setCustomerName('Walk-in Customer');
+    setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
+    setAmountPaid('');
+    setPaymentMethod('Cash');
+    setNotes('');
+    setIsDeposit(false);
+  };
+
   const handleCustomerSelect = (c) => {
     setCustomerId(c.id);
     setCustomerName(c.name);
@@ -140,8 +177,8 @@ export default function Sales() {
     if (items.length === 0 || !items[0].product_id) return setError('Please add at least one product.');
     if (saving) return;
     setSaving(true);
-    
     setError('');
+
     const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
 
     try {
@@ -175,7 +212,7 @@ export default function Sales() {
       const payloadAmountPaid = parseFloat(amountPaid) || 0;
       const status = isDeposit ? 'DEPOSIT' : (balance <= 0 ? 'PAID' : payloadAmountPaid > 0 ? 'PARTIAL' : 'UNPAID');
 
-      const { error: rpcError } = await supabase.rpc('record_sale_transaction', {
+      const { data: newSale, error: rpcError } = await supabase.rpc('record_sale_transaction', {
         p_customer_id: resolvedCustomerId,
         p_customer_name: customerName,
         p_total_amount: total,
@@ -188,16 +225,27 @@ export default function Sales() {
 
       if (rpcError) throw rpcError;
 
+      // Clear draft on success
+      clearDraft();
       setShowForm(false);
       setShowConfirm(false);
-      setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
-      setAmountPaid(''); setPaymentMethod('Cash'); setNotes('');
-      setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch('');
-      setIsDeposit(false);
       fetchData();
+      
+      if (window.confirm("Sale recorded! Download receipt?")) {
+        // Fetch the created sale to get the invoice number
+        const { data: fetchedSale } = await supabase
+          .from('sales')
+          .select('*')
+          .eq('customer_name', customerName)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        generateReceipt(fetchedSale || { id: 'NEW', customer_name: customerName, total_amount: total, amount_paid: payloadAmountPaid, balance_due: balance });
+      }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to record sale');
+      setError(`Transaction Failed: ${err.message || 'Network issue'}. Your data is safe in this draft.`);
     } finally {
       setSaving(false);
     }
@@ -305,14 +353,24 @@ export default function Sales() {
           <h2 className="section-title">Sales & Orders</h2>
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Record transactions and track Momo/Cash payments</p>
         </div>
-        <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New Sale'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {showForm && <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>}
+          <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Close Form' : '+ New Sale'}
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', color: '#ef4444', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', border: '1px solid #fee2e2' }}>
-          ⚠️ {error}
+        <div style={{ background: '#fef2f2', color: '#ef4444', padding: '14px', borderRadius: '10px', marginBottom: '20px', fontSize: '13px', border: '1px solid #fee2e2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>⚠️ {error}</span>
+          <button 
+            onClick={handleSubmit} 
+            disabled={saving}
+            style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}
+          >
+            {saving ? 'Retrying...' : 'Retry Now'}
+          </button>
         </div>
       )}
 

@@ -38,6 +38,31 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
+  const [error, setError] = useState('');
+
+  // --- Draft Persistence ---
+  useEffect(() => {
+    const savedDraft = localStorage.getItem("product_draft");
+    if (savedDraft && !editingId) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setForm(f => ({ ...f, ...draft }));
+        setShowForm(true);
+      } catch (e) { console.error("Product draft load error", e); }
+    }
+  }, [editingId]);
+
+  useEffect(() => {
+    if (showForm && !editingId) {
+      localStorage.setItem("product_draft", JSON.stringify(form));
+    }
+  }, [form, showForm, editingId]);
+
+  const clearDraft = () => {
+    localStorage.removeItem("product_draft");
+    setForm({...emptyForm});
+    setEditingId(null);
+  };
 
   const handleCategoryChange = (cat) => {
     // Only update category — UOM fields are typed freely by the user
@@ -61,20 +86,21 @@ export default function Products() {
     
     try {
       if (editingId) {
-        const { error } = await supabase.from('products').update(payload).eq('id', editingId);
-        if (error) throw error;
+        const { error: err } = await supabase.from('products').update(payload).eq('id', editingId);
+        if (err) throw err;
       } else {
         payload.created_at = new Date().toISOString();
-        const { error } = await supabase.from('products').insert([payload]);
-        if (error) throw error;
+        const { error: err } = await supabase.from('products').insert([payload]);
+        if (err) throw err;
       }
       
-      setForm({...emptyForm});
+      clearDraft();
       setShowForm(false);
       fetchProducts();
+      setError('');
     } catch (err) {
       console.error("Product save error:", err);
-      alert("Failed to save product: " + (err.message || "Unknown error"));
+      setError(`Failed to save product: ${err.message || "Please check your network"}. Draft still held.`);
     } finally {
       setSaving(false);
     }
@@ -167,9 +193,25 @@ export default function Products() {
         </div>
       </div>
 
+      {error && (
+        <div style={{ background: '#fef2f2', color: '#ef4444', padding: '14px', borderRadius: '10px', marginBottom: '20px', fontSize: '13px', border: '1px solid #fee2e2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>⚠️ {error}</span>
+          <button 
+            onClick={handleSubmit} 
+            disabled={saving}
+            style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}
+          >
+            {saving ? 'Retrying...' : 'Retry Now'}
+          </button>
+        </div>
+      )}
+
       {showForm && (
         <div className="table-card" style={{ marginBottom:24 }}>
-          <div className="table-card__header"><h3 className="table-card__title">{editingId ? 'Edit Product' : 'New Product'}</h3></div>
+          <div className="table-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 className="table-card__title">{editingId ? 'Edit Product' : 'New Product'}</h3>
+            {!editingId && <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>}
+          </div>
           <form onSubmit={handleSubmit} style={{ padding:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14 }}>
             <div>
               <label style={lbl}>Product Name *</label>
