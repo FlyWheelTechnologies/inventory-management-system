@@ -83,6 +83,12 @@ Deno.serve(async (req: Request) => {
                 <td style="padding: 12px 0; font-size: 16px; font-weight: 700;">Total</td>
                 <td style="padding: 12px 0; font-size: 16px; font-weight: 700; text-align: right;">GHS ${Number(record.total_amount).toFixed(2)}</td>
               </tr>
+              ${record.tax_amount > 0 ? `
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 12px;">Includes ${record.tax_percentage}% Tax</td>
+                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #6b7280; font-size: 12px;">GHS ${Number(record.tax_amount).toFixed(2)}</td>
+              </tr>
+              ` : ''}
               <tr>
                 <td style="padding: 8px 0; color: #6b7280;">${isDeposit ? 'Deposit Paid' : 'Amount Paid'}</td>
                 <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #059669;">GHS ${Number(record.amount_paid).toFixed(2)}</td>

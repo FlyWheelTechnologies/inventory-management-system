@@ -12,6 +12,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const { email, password, role, full_name } = await req.json();
     console.log("Invite request received for:", email);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -22,8 +23,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
-
-    const { email, password, role, full_name } = await req.json();
 
     // 1. Create the user in Auth
     console.log("Creating auth user...");

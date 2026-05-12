@@ -227,6 +227,3 @@ export default function JournalEntries() {
     </div>
   );
 }
-    </div>
-  );
-}
