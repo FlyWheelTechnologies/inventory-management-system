@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
 export default function Login() {
-  const [view, setView] = useState("login"); // Default to login
+  const [view, setView] = useState("landing"); // Default to landing screen
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,9 +42,8 @@ export default function Login() {
       if (error) {
         setErrorMsg(error.message);
       } else {
-        console.log("Login successful, navigating...");
-        login(data.user, data.session.access_token);
-        navigate("/dashboard");
+        console.log("Login successful, letting context handle redirect...");
+        // AuthContext onAuthStateChange will detect this and navigate
       }
     } catch (err) {
       console.error("Login crash:", err);
@@ -95,6 +94,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
             />
           </div>
 

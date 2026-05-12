@@ -151,6 +151,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 10 }}>
           {user?.role !== 'auditor' && (
             <>
+              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => navigate("/expenses")}>Record Expense</button>
               <button className="quick-action-btn" style={{ background: 'var(--brand-primary)' }} onClick={() => navigate("/products")}>+ Add Stock</button>
               <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales")}>Record Sale</button>
             </>

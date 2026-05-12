@@ -210,7 +210,17 @@ export default function Products() {
         <div className="table-card" style={{ marginBottom:24 }}>
           <div className="table-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="table-card__title">{editingId ? 'Edit Product' : 'New Product'}</h3>
-            {!editingId && <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>}
+            {!editingId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
+                <button 
+                  onClick={clearDraft}
+                  style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Clear Form
+                </button>
+              </div>
+            )}
           </div>
           <form onSubmit={handleSubmit} style={{ padding:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14 }}>
             <div>

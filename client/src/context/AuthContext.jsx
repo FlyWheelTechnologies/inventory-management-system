@@ -47,16 +47,22 @@ export function AuthProvider({ children }) {
       }, 5000);
 
       try {
+        const startTime = Date.now();
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session && isMounted) {
-          fetchProfile(session.user).then(fullUser => {
-            if (isMounted) setUser(fullUser);
-          });
+          const fullUser = await fetchProfile(session.user);
+          if (isMounted) setUser(fullUser);
         } else if (isMounted) {
           setUser(null);
           localStorage.removeItem("user");
         }
+
+        // Professional Delay: Ensure splash screen shows for at least 1.2 seconds
+        const elapsedTime = Date.now() - startTime;
+        const remainingDelay = Math.max(0, 1200 - elapsedTime);
+        await new Promise(resolve => setTimeout(resolve, remainingDelay));
+
       } catch (err) {
         console.error("Auth init error:", err);
       } finally {
@@ -111,13 +117,13 @@ export function AuthProvider({ children }) {
 
   // Only show the "Starting System" loader if we are truly loading and have NO cached user.
   // This makes the app feel instant on refresh for logged-in users.
-  if (loading && !user) {
+  if (loading) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#374151', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '40px', height: '40px', border: '4px solid #f15a24', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-          <h2 style={{ color: '#1e293b', fontSize: '18px', fontWeight: '600' }}>Starting System...</h2>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>Initializing secure connection</p>
+          <div style={{ width: '48px', height: '48px', border: '5px solid rgba(255,255,255,0.1)', borderTopColor: '#f97316', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
+          <h2 style={{ color: '#fff', fontSize: '22px', fontWeight: '700', letterSpacing: '1px' }}>FLORZYANGEL</h2>
+          <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>Initializing Secure Session...</p>
           <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
         </div>
       </div>

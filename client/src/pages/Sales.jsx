@@ -52,6 +52,8 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
   const [isDeposit, setIsDeposit] = useState(false);
+  const [taxPercentage, setTaxPercentage] = useState(0);
+  const [taxInclusive, setTaxInclusive] = useState(true);
 
   const filteredCustomers = customerSearch.length > 0
     ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
@@ -70,6 +72,8 @@ export default function Sales() {
         setPaymentMethod(draft.paymentMethod || 'Cash');
         setNotes(draft.notes || '');
         setIsDeposit(draft.isDeposit || false);
+        setTaxPercentage(draft.taxPercentage || 0);
+        setTaxInclusive(draft.taxInclusive !== undefined ? draft.taxInclusive : true);
         // Only show form if there was meaningful data
         if (draft.items?.length > 0 && draft.items[0].product_id) setShowForm(true);
       } catch (e) { console.error("Draft load error", e); }
@@ -78,7 +82,7 @@ export default function Sales() {
 
   useEffect(() => {
     if (showForm) {
-      const draft = { customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit };
+      const draft = { customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive };
       localStorage.setItem("sales_draft", JSON.stringify(draft));
     }
   }, [customerId, customerName, items, amountPaid, paymentMethod, notes, isDeposit, showForm]);
@@ -92,6 +96,8 @@ export default function Sales() {
     setPaymentMethod('Cash');
     setNotes('');
     setIsDeposit(false);
+    setTaxPercentage(0);
+    setTaxInclusive(true);
   };
 
   const handleCustomerSelect = (c) => {
@@ -171,7 +177,11 @@ export default function Sales() {
   };
 
   const total = items.reduce((a, i) => a + (i.quantity * i.unit_price), 0);
-  const balance = total - (parseFloat(amountPaid) || 0);
+  const taxAmount = taxInclusive 
+    ? total - (total / (1 + (taxPercentage / 100))) 
+    : total * (taxPercentage / 100);
+  const grandTotal = taxInclusive ? total : total + taxAmount;
+  const balance = grandTotal - (parseFloat(amountPaid) || 0);
 
   const handleSubmit = async () => {
     if (items.length === 0 || !items[0].product_id) return setError('Please add at least one product.');
@@ -220,7 +230,9 @@ export default function Sales() {
         p_payment_method: paymentMethod,
         p_payment_status: status,
         p_items: validItems,
-        p_recorded_by: userEmail
+        p_recorded_by: userEmail,
+        p_tax_percentage: taxPercentage,
+        p_tax_inclusive: taxInclusive
       });
 
       if (rpcError) throw rpcError;
@@ -354,7 +366,17 @@ export default function Sales() {
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Record transactions and track Momo/Cash payments</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {showForm && <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>}
+          {showForm && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
+              <button 
+                onClick={clearDraft}
+                style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Clear Form
+              </button>
+            </div>
+          )}
           <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Close Form' : '+ New Sale'}
           </button>
@@ -494,22 +516,49 @@ export default function Sales() {
               </span>
             </div>
 
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, padding:16, background:'#f9fafb', borderRadius:10 }}>
-              <div><label style={lbl}>Total Amount</label><p style={{fontSize:22, fontWeight:700}}>GHS {total.toFixed(2)}</p></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:14, padding:16, background:'#f9fafb', borderRadius:10 }}>
               <div>
-                <label style={lbl}>{isDeposit ? 'Deposit Amount (GHS)' : 'Amount Paid (GHS)'} <InfoTip text={isDeposit ? 'How much the customer is depositing in advance.' : 'How much the customer is paying right now.'} /></label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={inp} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
-                  <select style={{...inp, width: 130}} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-                    <option value="Cash">Cash</option>
-                    <option value="Momo">Momo</option>
-                    <option value="Bank">Bank Transfer</option>
+                <label style={lbl}>Subtotal</label>
+                <p style={{fontSize:18, fontWeight:700}}>GHS {total.toFixed(2)}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <select style={{ ...inp, padding: '4px', fontSize: '12px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
+                    <option value="0">0% Tax</option>
+                    <option value="12.5">12.5% (Flat)</option>
+                    <option value="15">15% (VAT)</option>
+                    <option value="21.9">21.9% (Effective)</option>
                   </select>
+                  <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
+                  </label>
                 </div>
               </div>
               <div>
-                <label style={lbl}>{isDeposit ? 'Balance to Collect on Delivery' : 'Balance Due'}</label>
-                <p style={{fontSize:22, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(2)}</p>
+                <label style={lbl}>Tax Amount</label>
+                <p style={{fontSize:18, fontWeight:700, color: '#6b7280'}}>GHS {taxAmount.toFixed(2)}</p>
+              </div>
+              <div>
+                <label style={lbl}>Grand Total</label>
+                <p style={{fontSize:22, fontWeight:700, color: '#f97316'}}>GHS {grandTotal.toFixed(2)}</p>
+              </div>
+              <div>
+                <label style={lbl}>{isDeposit ? 'Deposit Amount' : 'Amount Paid'}</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={inp} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14, padding: 12, background: '#f3f4f6', borderRadius: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <div><label style={lbl}>Payment Method</label>
+                <select style={{...inp, width: 130}} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                  <option value="Cash">Cash</option>
+                  <option value="Momo">Momo</option>
+                  <option value="Bank">Bank Transfer</option>
+                </select>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
+                <p style={{fontSize:20, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(2)}</p>
               </div>
             </div>
 
