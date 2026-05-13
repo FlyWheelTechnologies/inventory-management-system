@@ -5,6 +5,7 @@ import ConfirmationModal from "../components/ConfirmationModal";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import "./Dashboard.css";
+import { formatCurrency, formatPhone } from "../services/formatters";
 
 const playSound = (type) => {
   // Sounds currently disabled as files are missing
@@ -51,7 +52,7 @@ export default function Sales() {
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [customerSearch, setCustomerSearch] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('+233');
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [items, setItems] = useState([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
   const [amountPaid, setAmountPaid] = useState('');
@@ -89,7 +90,7 @@ export default function Sales() {
         setIsDeposit(draft.isDeposit || false);
         setTaxPercentage(draft.taxPercentage || 0);
         setTaxInclusive(draft.taxInclusive !== undefined ? draft.taxInclusive : true);
-        setCustomerPhone(draft.customerPhone || '');
+        setCustomerPhone(draft.customerPhone || '+233');
         // Only show form if there was meaningful data
         if (draft.items?.length > 0 && draft.items[0].product_id) setShowForm(true);
       } catch (e) { console.error("Draft load error", e); }
@@ -106,7 +107,7 @@ export default function Sales() {
   const clearDraft = () => {
     localStorage.removeItem("sales_draft");
     setCustomerSearch('');
-    setCustomerPhone('');
+    setCustomerPhone('+233');
     setItems([{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
     setAmountPaid('');
     setPaymentMethod('Cash');
@@ -120,7 +121,7 @@ export default function Sales() {
     setCustomerId(c.id);
     setCustomerName(c.name);
     setCustomerSearch(c.name);
-    setCustomerPhone(c.phone || '');
+    setCustomerPhone(c.phone || '+233');
     setShowCustomerSuggestions(false);
     
     // Fetch customer credit balance
@@ -137,7 +138,7 @@ export default function Sales() {
     setCustomerSearch(val);
     setCustomerName(val || 'Walk-in Customer');
     setCustomerId('');
-    setCustomerPhone('');
+    setCustomerPhone('+233');
     setShowCustomerSuggestions(true);
   };
 
@@ -195,6 +196,30 @@ export default function Sales() {
     doc.text('powered by bookflywheel.com', 40, 146, { align: 'center' });
     
     doc.save(`Receipt_INV_${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}.pdf`);
+  };
+
+  const shareViaWhatsApp = (sale) => {
+    const customer = customers.find(c => c.id === sale.customer_id);
+    const phone = customer?.phone || (sale.customer_name === customerName ? customerPhone : '');
+    
+    if (!phone) {
+      setToast({ message: "No phone number available for this customer.", type: "error" });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    const invoiceNo = `INV-${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}`;
+    const message = `*FlorzyAngel ENT - Official Receipt*%0A%0A` +
+      `Hello ${sale.customer_name}, thank you for your business!%0A%0A` +
+      `*Invoice:* ${invoiceNo}%0A` +
+      `*Date:* ${new Date(sale.created_at).toLocaleDateString()}%0A` +
+      `*Total:* GHS ${formatCurrency(sale.total_amount)}%0A` +
+      `*Paid:* GHS ${formatCurrency(sale.amount_paid)}%0A` +
+      `*Balance:* GHS ${formatCurrency(sale.balance_due)}%0A%0A` +
+      `Thank you for shopping with us!`;
+
+    const waUrl = `https://wa.me/${phone.replace(/\s+/g, '').replace(/^\+/, '')}?text=${message}`;
+    window.open(waUrl, '_blank');
   };
 
   const total = items.reduce((a, i) => a + (i.quantity * i.unit_price), 0);
@@ -281,8 +306,13 @@ export default function Sales() {
       setShowConfirm(false);
       setShowForm(false);
       fetchData();
-      setToast({ message: "Sale recorded successfully!", type: "success" });
-      setTimeout(() => setToast(null), 4000);
+      setToast({ 
+        message: "Sale recorded successfully!", 
+        type: "success",
+        action: () => shareViaWhatsApp(newSale || { ...payload, id: 'latest' }), // Approximate if rpc doesn't return ID
+        actionLabel: "Send WhatsApp"
+      });
+      setTimeout(() => setToast(null), 6000);
     } catch (err) {
       console.error(err);
       setShowConfirm(false);
@@ -293,7 +323,7 @@ export default function Sales() {
   };
 
   const [dateFilter, setDateFilter] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsToShow, setItemsToShow] = useState(25);
   const itemsPerPage = 10;
 
   const filtered = sales
@@ -384,8 +414,7 @@ export default function Sales() {
     reader.readAsText(file);
   };
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginated = filtered.slice(0, itemsToShow);
 
   if (loading) {
     return (
@@ -467,7 +496,7 @@ export default function Sales() {
                       {showCustomerSuggestions && (
                         <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
                           <div 
-                            onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone(''); }}
+                            onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); }}
                             style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
                           >
                             👤 Generic Walk-in Customer (Default)
@@ -490,7 +519,7 @@ export default function Sales() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone(''); }}
+                      onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); }}
                       style={{ background:'#f3f4f6', border:'none', borderRadius:8, padding:'0 12px', cursor:'pointer', color:'#6b7280', fontSize:12, fontWeight:600 }}
                     >
                       Reset
@@ -502,8 +531,8 @@ export default function Sales() {
                   <input
                     style={inp}
                     value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    placeholder="Enter phone number..."
+                    onChange={e => setCustomerPhone(formatPhone(e.target.value))}
+                    placeholder="+233XXXXXXXXX"
                     onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                   />
                 </div>
@@ -604,7 +633,7 @@ export default function Sales() {
                         newItems[idx].unit_price = parseFloat(e.target.value)||0;
                         setItems(newItems);
                       }} /></td>
-                      <td style={{fontWeight:600}}>GHS {(item.quantity * item.unit_price).toFixed(1)}</td>
+                      <td style={{fontWeight:600}}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
                       <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{background:'#f3f4f6', color:'#ef4444', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
                     </tr>
                   ))}
@@ -638,11 +667,11 @@ export default function Sales() {
                       <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
                     </label>
                   </div>
-                  <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {taxAmount.toFixed(1)}</div>
+                  <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {formatCurrency(taxAmount)}</div>
                 </div>
                 <div>
                   <label style={lbl}>Grand Total</label>
-                  <p style={{fontSize:24, fontWeight:800, color: '#111827'}}>GHS {grandTotal.toFixed(1)}</p>
+                  <p style={{fontSize:24, fontWeight:800, color: '#111827'}}>GHS {formatCurrency(grandTotal)}</p>
                 </div>
                 <div>
                   <label style={lbl}>{isDeposit ? 'Deposit Amt' : 'Paid Amt'} *</label>
@@ -661,7 +690,7 @@ export default function Sales() {
               {customerCredit > 0 && (
                 <div style={{ marginTop: 16, padding: 16, background: '#f0fdf4', borderRadius: 12, border: '1.5px dashed #22c55e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎁 Available Customer Credit: GHS {customerCredit.toFixed(1)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎁 Available Customer Credit: GHS {formatCurrency(customerCredit)}</span>
                     <p style={{ fontSize: 11, color: '#15803d', margin: '4px 0 0' }}>This customer has overpaid in the past. You can apply this to the current sale.</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -688,11 +717,11 @@ export default function Sales() {
                 <div style={{ display:'flex', gap: 20 }}>
                   <div>
                     <label style={lbl}>Subtotal</label>
-                    <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {total.toFixed(1)}</p>
+                    <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {formatCurrency(total)}</p>
                   </div>
                   <div>
                     <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
-                    <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {balance.toFixed(1)}</p>
+                    <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {formatCurrency(balance)}</p>
                   </div>
                 </div>
                 <button type="button" onClick={() => setShowConfirm(true)} className="quick-action-btn" style={{ width:'280px', height:'50px', fontSize:16, background: isDeposit ? '#10b981' : undefined }}>
@@ -707,7 +736,17 @@ export default function Sales() {
       {toast && (
         <div style={{ position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', background:'#064e3b', color:'#fff', padding:'12px 24px', borderRadius:'12px', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:2000, display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' }}>
           <span style={{fontSize:18}}>✅</span>
-          <span style={{fontWeight:600}}>{toast.message}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{fontWeight:600}}>{toast.message}</span>
+            {toast.action && (
+              <button 
+                onClick={toast.action}
+                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', marginTop: 4 }}
+              >
+                📱 {toast.actionLabel}
+              </button>
+            )}
+          </div>
           <style>{`
             @keyframes slideDown { 
               from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
@@ -751,12 +790,15 @@ export default function Sales() {
                   <td className="table-code">#INV-{String(s.invoice_no || s.id).slice(-6).padStart(3, '0')}</td>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td>{s.customer_name}</td>
-                  <td style={{fontWeight:600}}>GHS {parseFloat(s.total_amount).toFixed(1)}</td>
-                  <td>GHS {parseFloat(s.amount_paid).toFixed(1)}</td>
-                  <td style={{fontWeight:600, color: s.balance_due > 0 ? '#ef4444' : '#059669'}}>GHS {parseFloat(s.balance_due).toFixed(1)}</td>
+                  <td style={{fontWeight:600}}>GHS {formatCurrency(s.total_amount)}</td>
+                  <td>GHS {formatCurrency(s.amount_paid)}</td>
+                  <td style={{fontWeight:600, color: s.balance_due > 0 ? '#ef4444' : '#059669'}}>GHS {formatCurrency(s.balance_due)}</td>
                   <td><span className={`status-pill status-pill--${s.payment_status === 'PAID' ? 'ok' : 'low'}`}>{s.payment_status}</span></td>
                   <td>
-                    <button onClick={() => generateReceipt(s)} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}} title="Download Receipt">📄</button>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <button onClick={() => generateReceipt(s)} style={{background:'none', border:'none', cursor:'pointer', fontSize:16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'}} title="Download PDF Receipt">📄</button>
+                      <button onClick={() => shareViaWhatsApp(s)} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}} title="Send receipt on WhatsApp">📱</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -764,11 +806,14 @@ export default function Sales() {
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div style={{ display:'flex', justifyContent:'center', gap:8, padding:16, borderTop:'1px solid #f3f4f6' }}>
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={miniInp}>Previous</button>
-            <div style={{ display:'flex', alignItems:'center', fontSize:13, fontWeight:600 }}>Page {currentPage} of {totalPages}</div>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} style={miniInp}>Next</button>
+        {filtered.length > itemsToShow && (
+          <div style={{ padding: 20, textAlign: 'center', borderTop: '1px solid #f3f4f6' }}>
+            <button 
+              onClick={() => setItemsToShow(prev => prev + 25)}
+              style={{ width: '100%', padding: '12px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, color: '#4b5563', fontWeight: 600, cursor: 'pointer' }}
+            >
+              See More Transactions ↓
+            </button>
           </div>
         )}
       </div>

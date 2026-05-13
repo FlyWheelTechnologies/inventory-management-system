@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Re
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import "./Dashboard.css";
+import { formatCurrency, formatPhone } from "../services/formatters";
 
 const InfoTip = ({ text }) => (
   <span className="info-tip" title={text}>ⓘ
@@ -38,35 +39,36 @@ export default function Dashboard() {
   const [logs, setLogs] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depCustName, setDepCustName] = useState('');
-  const [depCustPhone, setDepCustPhone] = useState('');
+  const [depCustPhone, setDepCustPhone] = useState('+233');
   const [depAmount, setDepAmount] = useState('');
   const [depMethod, setDepMethod] = useState('Cash');
   const [depSaving, setDepSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const fetchData = async () => {
+    if (!navigator.onLine) return; 
+    
+    const [productsRes, salesRes, expensesRes, logsRes] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('sales').select('*'),
+      supabase.from('expenses').select('*'),
+      supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(50)
+    ]);
+
+    if (productsRes.data) setProducts(productsRes.data);
+    if (salesRes.data) setSales(salesRes.data);
+    if (expensesRes.data) setExpenses(expensesRes.data);
+    if (logsRes.data) setLogs(logsRes.data);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!navigator.onLine) return; // Silent fail if offline, though PWA won't load properly without data
-      
-      const [productsRes, salesRes, expensesRes, logsRes] = await Promise.all([
-        supabase.from('products').select('*'),
-        supabase.from('sales').select('*'),
-        supabase.from('expenses').select('*'),
-        supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(50)
-      ]);
-
-      if (productsRes.data) setProducts(productsRes.data);
-      if (salesRes.data) setSales(salesRes.data);
-      if (expensesRes.data) setExpenses(expensesRes.data);
-      if (logsRes.data) setLogs(logsRes.data);
-      setTimeout(() => setLoading(false), 1000);
-    };
-    
     fetchData();
   }, []);
 
   const handlePureDeposit = async (e) => {
     e.preventDefault();
-    if (!depCustName || !depCustPhone || !depAmount) return alert("Please fill all fields");
+    if (!depCustName || !depCustPhone || !depAmount) return setToast({ message: "Please fill all fields", type: "error" });
     setDepSaving(true);
     try {
       const { data, error } = await supabase.rpc('record_pure_deposit', {
@@ -79,15 +81,20 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      alert("Deposit recorded successfully!");
+      // Success logic
       setShowDepositModal(false);
       setDepCustName('');
-      setDepCustPhone('');
+      setDepCustPhone('+233');
       setDepAmount('');
-      // Refresh data
-      window.location.reload(); 
+      
+      setToast({ message: "Deposit recorded successfully!", type: "success" });
+      setTimeout(() => setToast(null), 4000);
+      
+      // Refresh data locally without page reload
+      fetchData();
     } catch (err) {
-      alert("Error: " + err.message);
+      setToast({ message: "Error: " + err.message, type: "error" });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setDepSaving(false);
     }
@@ -159,7 +166,9 @@ export default function Dashboard() {
   const todayDate = new Date().toDateString();
   const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
   const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-  const todayRevenue = todaySales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
+  const todayRevenue = todaySales
+    .filter(s => s.payment_status !== 'DEPOSIT')
+    .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
   const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * parseFloat(p.stock_quantity || 0)), 0);
   const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
   const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
@@ -169,7 +178,9 @@ export default function Dashboard() {
     ? [...products].sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))[0]?.name || 'No sales yet'
     : 'No products';
 
-  const totalRevenue = sales.reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
+  const totalRevenue = sales
+    .filter(s => s.payment_status !== 'DEPOSIT')
+    .reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
   const totalCost = sales.reduce((sum, s) => {
     // Estimating cost if not explicitly recorded per sale
     return sum + (parseFloat(s.total_amount) * 0.7); 
@@ -229,12 +240,12 @@ export default function Dashboard() {
           <>
             <StatCard
               label={<>Today's Cash In <InfoTip text="Total cash and momo collected today." /></>}
-              value={`GHS ${todayCashIn.toFixed(1)}`}
+              value={`GHS ${formatCurrency(todayCashIn)}`}
               icon="💰"
             />
             <StatCard
               label={<>Today's Revenue <InfoTip text="Total volume of sales recorded (Paid + Credit)." /></>}
-              value={`GHS ${todayRevenue.toFixed(1)}`}
+              value={`GHS ${formatCurrency(todayRevenue)}`}
               icon="📈"
               accent="primary"
             />
@@ -248,7 +259,7 @@ export default function Dashboard() {
         />
         <StatCard
           label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
-          value={`GHS ${stockValue.toFixed(1)}`}
+          value={`GHS ${formatCurrency(stockValue)}`}
           icon="📦"
         />
         <StatCard
@@ -406,7 +417,14 @@ export default function Dashboard() {
               
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Phone Number</label>
-                <input type="text" value={depCustPhone} onChange={e => setDepCustPhone(e.target.value)} placeholder="e.g. 024XXXXXXX" style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} required />
+                <input 
+                  type="text" 
+                  value={depCustPhone} 
+                  onChange={e => setDepCustPhone(formatPhone(e.target.value))} 
+                  placeholder="+233XXXXXXXXX" 
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} 
+                  required 
+                />
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
@@ -432,6 +450,25 @@ export default function Dashboard() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* Status Toasts */}
+      {toast && (
+        <div style={{ 
+          position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
+          background: toast.type === 'success' ? '#064e3b' : '#7f1d1d', 
+          color:'#fff', padding:'12px 24px', borderRadius:'12px', 
+          boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:4000, 
+          display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' 
+        }}>
+          <span style={{fontSize:18}}>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+          <span style={{fontWeight:600}}>{toast.message}</span>
+          <style>{`
+            @keyframes slideDown { 
+              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+              to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+          `}</style>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
+import { formatCurrency } from "../services/formatters";
 
 const CATEGORIES = ['Utilities', 'Transport', 'Salary', 'Maintenance', 'Supplies', 'Misc'];
 
@@ -37,15 +38,13 @@ export default function Expenses() {
   };
 
   const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsToShow, setItemsToShow] = useState(25);
 
   const filtered = expenses
     .filter(e => e.description.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginated = filtered.slice(0, itemsToShow);
 
   const totalExpenses = expenses.reduce((a, e) => a + parseFloat(e.amount), 0);
 
@@ -79,7 +78,7 @@ export default function Expenses() {
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
           <div className="summary-card" style={{ padding:'10px 20px', width: 'auto' }}>
             <span style={{ fontSize:12, color:'#6b7280' }}>Total: </span>
-            <span style={{ fontSize:18, fontWeight:700 }}>GHS {totalExpenses.toFixed(1)}</span>
+            <span style={{ fontSize:18, fontWeight:700 }}>GHS {formatCurrency(totalExpenses)}</span>
           </div>
           <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Record Expense'}</button>
         </div>
@@ -122,7 +121,7 @@ export default function Expenses() {
                   <td style={{fontSize:12, color:'#6b7280'}}>{new Date(e.created_at).toLocaleDateString()}</td>
                   <td style={{fontWeight:500}}>{e.description}</td>
                   <td><span style={{background:'#f3f4f6', padding:'2px 8px', borderRadius:4, fontSize:12}}>{e.category}</span></td>
-                  <td style={{fontWeight:600}}>GHS {parseFloat(e.amount).toFixed(1)}</td>
+                  <td style={{fontWeight:600}}>GHS {formatCurrency(e.amount)}</td>
                   <td>{e.recorded_by}</td>
                 </tr>
               ))}
@@ -130,11 +129,14 @@ export default function Expenses() {
           </table>
         </div>
         
-        {totalPages > 1 && (
-          <div style={{ display:'flex', justifyContent:'center', gap:8, padding:16, borderTop:'1px solid #f3f4f6' }}>
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={miniInp}>Previous</button>
-            <div style={{ display:'flex', alignItems:'center', fontSize:13, fontWeight:600 }}>Page {currentPage} of {totalPages}</div>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} style={miniInp}>Next</button>
+        {filtered.length > itemsToShow && (
+          <div style={{ padding: 20, textAlign: 'center', borderTop: '1px solid #f3f4f6' }}>
+            <button 
+              onClick={() => setItemsToShow(prev => prev + 25)}
+              style={{ width: '100%', padding: '12px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, color: '#4b5563', fontWeight: 600, cursor: 'pointer' }}
+            >
+              See More Expenses ↓
+            </button>
           </div>
         )}
       </div>

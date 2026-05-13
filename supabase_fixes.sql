@@ -295,9 +295,9 @@ GRANT SELECT ON public.deposits TO service_role;
 -- 4. NEW FUNCTION: RECORD PURE DEPOSIT (Money only, no stock)
 CREATE OR REPLACE FUNCTION public.record_pure_deposit(
   p_customer_name text,
-  p_customer_phone text,
   p_amount numeric,
   p_recorded_by text,
+  p_customer_phone text DEFAULT NULL,
   p_payment_method text DEFAULT 'Cash'
 )
 RETURNS uuid
@@ -310,7 +310,12 @@ DECLARE
   v_sale_id UUID;
 BEGIN
   -- Find or create customer
-  SELECT id INTO v_customer_id FROM public.customers WHERE phone = p_customer_phone LIMIT 1;
+  IF p_customer_phone IS NOT NULL AND p_customer_phone != '' THEN
+    SELECT id INTO v_customer_id FROM public.customers WHERE phone = p_customer_phone LIMIT 1;
+  ELSE
+    SELECT id INTO v_customer_id FROM public.customers WHERE pg_catalog.lower(name) = pg_catalog.lower(p_customer_name) LIMIT 1;
+  END IF;
+  
   IF v_customer_id IS NULL THEN
     INSERT INTO public.customers (name, phone) VALUES (p_customer_name, p_customer_phone) RETURNING id INTO v_customer_id;
   END IF;
@@ -375,5 +380,64 @@ BEGIN
   DELETE FROM public.journal_entries WHERE sale_id = p_sale_id;
   -- Delete Sale
   DELETE FROM public.sales WHERE id = p_sale_id AND (notes ILIKE '%Pure Deposit%' OR total_amount = 0);
+END;
+$$;
+
+-- 7. FULFILL PURE DEPOSIT (Adds items and recognizes revenue)
+CREATE OR REPLACE FUNCTION public.fulfill_pure_deposit(
+  p_sale_id uuid,
+  p_items jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_item RECORD;
+  v_new_items_amount NUMERIC := 0;
+  v_deposit_paid NUMERIC;
+  v_current_total NUMERIC;
+BEGIN
+  -- 1. Get current sale status
+  SELECT amount_paid, total_amount INTO v_deposit_paid, v_current_total 
+  FROM public.sales WHERE id = p_sale_id;
+
+  -- 2. Process NEW Items and calculate their subtotal
+  FOR v_item IN SELECT * FROM pg_catalog.jsonb_to_recordset(p_items) AS x(product_id UUID, product_name TEXT, quantity NUMERIC, unit_price NUMERIC, subtotal NUMERIC)
+  LOOP
+    INSERT INTO public.sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal)
+    VALUES (p_sale_id, v_item.product_id, v_item.product_name, v_item.quantity, v_item.unit_price, ROUND(v_item.subtotal, 1));
+    
+    -- Deduct Stock
+    UPDATE public.products SET stock_quantity = stock_quantity - v_item.quantity WHERE id = v_item.product_id;
+    
+    v_new_items_amount := v_new_items_amount + v_item.subtotal;
+  END LOOP;
+
+  -- 3. Update Sale Record (Cumulative)
+  UPDATE public.sales
+  SET total_amount = ROUND(v_current_total + v_new_items_amount, 1),
+      balance_due = ROUND((v_current_total + v_new_items_amount) - v_deposit_paid, 1),
+      payment_status = CASE 
+        WHEN ((v_current_total + v_new_items_amount) - v_deposit_paid) <= 0 THEN 'PAID' 
+        ELSE 'PARTIAL' 
+      END,
+      notes = CASE 
+        WHEN ((v_current_total + v_new_items_amount) - v_deposit_paid) >= 0 THEN COALESCE(notes, '') || ' (Fulfilled)'
+        ELSE notes
+      END
+  WHERE id = p_sale_id;
+
+  -- 4. Journaling: Recognize the Revenue for the items picked up
+  INSERT INTO public.journal_entries (sale_id, account_type, credit, description) 
+  VALUES (p_sale_id, 'REVENUE', ROUND(v_new_items_amount, 1), 'Revenue recognized from partial fulfillment');
+
+  -- 5. Record Outstanding Debt if balance > 0
+  IF ((v_current_total + v_new_items_amount) - v_deposit_paid) > 0 THEN
+    INSERT INTO public.journal_entries (sale_id, account_type, debit, description) 
+    VALUES (p_sale_id, 'ACCOUNTS_RECEIVABLE', ROUND((v_current_total + v_new_items_amount) - v_deposit_paid, 1), 'Outstanding debt from fulfillment session');
+  END IF;
+
 END;
 $$;

@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
 
-const emptyForm = { name: '', phone: '', email: '', address: '', is_contractor: false };
+const emptyForm = { name: '', phone: '+233', email: '', address: '', is_contractor: false };
 
 export default function Customers() {
   const { user } = useAuth();
@@ -141,7 +141,11 @@ export default function Customers() {
           <div className="table-card__header"><h3 className="table-card__title">{editingId ? 'Edit Customer' : 'Add New Customer'}</h3></div>
           <form onSubmit={handleSubmit} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div><label style={lbl}>Full Name *</label><input style={inp} value={form.name} onChange={e => setForm({...form, name: e.target.value})} required /></div>
-            <div><label style={lbl}>Phone Number</label><input style={inp} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="024XXXXXXX" /></div>
+            <div><label style={lbl}>Phone Number</label><input style={inp} value={form.phone} onChange={e => {
+              let val = e.target.value;
+              if (val.startsWith('0')) val = '+233' + val.substring(1);
+              setForm({...form, phone: val});
+            }} placeholder="+233XXXXXXXXX" /></div>
             <div><label style={lbl}>Email Address</label><input style={inp} type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
             <div><label style={lbl}>Address / Location</label><input style={inp} value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'center', marginTop: 10 }}>

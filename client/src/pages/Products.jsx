@@ -3,6 +3,7 @@ import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
+import { formatCurrency } from "../services/formatters";
 
 const CATEGORIES = ['Building Materials', 'Plumbing', 'Electrical', 'Roofing', 'Paint', 'General'];
 const UOM_PRESETS = {
@@ -168,8 +169,7 @@ export default function Products() {
     reader.readAsText(file);
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsToShow, setItemsToShow] = useState(25);
 
   const filtered = products
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
@@ -181,8 +181,7 @@ export default function Products() {
       return a.name.localeCompare(b.name);
     });
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginated = filtered.slice(0, itemsToShow);
 
   if (loading) {
     return (
@@ -383,8 +382,8 @@ export default function Products() {
                   <td style={{fontWeight:600}}>{p.stock_quantity} {p.selling_uom}s</td>
                   <td>{p.buying_uom}</td>
                   <td>{p.selling_uom}</td>
-                  <td>GHS {parseFloat(p.cost_price||0).toFixed(1)}</td>
-                  <td style={{fontWeight:600}}>GHS {parseFloat(p.selling_price||0).toFixed(1)}</td>
+                  <td>GHS {formatCurrency(p.cost_price)}</td>
+                  <td style={{fontWeight:600}}>GHS {formatCurrency(p.selling_price)}</td>
                   <td>
                     {p.stock_quantity <= 0 ? (
                       <span className="status-pill" style={{ background: '#000', color: '#fff' }}>DEPLETED</span>
@@ -426,24 +425,13 @@ export default function Products() {
           </table>
         </div>
         
-        {totalPages > 1 && (
-          <div style={{ display:'flex', justifyContent:'center', gap:8, padding:16, borderTop:'1px solid #f3f4f6' }}>
+        {filtered.length > itemsToShow && (
+          <div style={{ padding: 20, textAlign: 'center', borderTop: '1px solid #f3f4f6' }}>
             <button 
-              disabled={currentPage === 1} 
-              onClick={() => setCurrentPage(p => p - 1)}
-              style={{ ...miniInp, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+              onClick={() => setItemsToShow(prev => prev + 25)}
+              style={{ width: '100%', padding: '12px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, color: '#4b5563', fontWeight: 600, cursor: 'pointer' }}
             >
-              Previous
-            </button>
-            <div style={{ display:'flex', alignItems:'center', fontSize:13, fontWeight:600 }}>
-              Page {currentPage} of {totalPages}
-            </div>
-            <button 
-              disabled={currentPage === totalPages} 
-              onClick={() => setCurrentPage(p => p + 1)}
-              style={{ ...miniInp, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
-            >
-              Next
+              See More Products ↓
             </button>
           </div>
         )}
