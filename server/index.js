@@ -357,13 +357,31 @@ app.post('/api/sales', async (req, res) => {
 
     // Insert line items & deduct stock
     if (items && items.length > 0) {
+      // Single insert via batch string
+      const insertPlaceholders = items.map(() => '(?,?,?,?,?,?)').join(',');
+      const insertParams = [];
       for (const item of items) {
-        const subtotal = item.quantity * item.unit_price;
-        await dbRun('INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal) VALUES (?,?,?,?,?,?)',
-          [saleId, item.product_id, item.product_name, item.quantity, item.unit_price, subtotal]);
-        // Deduct stock
-        await dbRun('UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?', [item.quantity, item.product_id]);
+        insertParams.push(saleId, item.product_id, item.product_name, item.quantity, item.unit_price, item.quantity * item.unit_price);
       }
+      await dbRun(`INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal) VALUES ${insertPlaceholders}`, insertParams);
+
+      // Single update via CASE statement with aggregated quantities to handle duplicates
+      const quantityByProduct = {};
+      for (const item of items) {
+        quantityByProduct[item.product_id] = (quantityByProduct[item.product_id] || 0) + item.quantity;
+      }
+
+      const uniqueProductIds = Object.keys(quantityByProduct);
+      let caseSql = 'UPDATE products SET stock_quantity = stock_quantity - CASE id ';
+      const updateParams = [];
+      for (const pId of uniqueProductIds) {
+        caseSql += 'WHEN ? THEN ? ';
+        updateParams.push(pId, quantityByProduct[pId]);
+      }
+      caseSql += 'ELSE 0 END WHERE id IN (' + uniqueProductIds.map(() => '?').join(',') + ')';
+      updateParams.push(...uniqueProductIds);
+
+      await dbRun(caseSql, updateParams);
     }
 
     // Double-entry journal entries
