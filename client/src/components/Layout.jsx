@@ -177,7 +177,17 @@ const ProfileModal = ({ isOpen, onClose }) => {
 };
 
 export default function Layout({ children }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar_collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem("sidebar_collapsed", next);
+      return next;
+    });
+  };
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -210,7 +220,7 @@ export default function Layout({ children }) {
     <div className="app-shell">
       <Sidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((p) => !p)}
+        onToggle={toggleSidebar}
       />
 
       <div className="app-main">

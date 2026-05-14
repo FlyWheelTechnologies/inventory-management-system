@@ -198,8 +198,19 @@ export default function Sales() {
     doc.save(`Receipt_INV_${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}.pdf`);
   };
 
-  const shareViaWhatsApp = (sale) => {
+  const shareViaWhatsApp = async (sale) => {
     if (!sale) return;
+    
+    // Fetch items for this sale
+    const { data: saleItems, error: itemsError } = await supabase
+      .from('sale_items')
+      .select('*')
+      .eq('sale_id', sale.id);
+
+    if (itemsError) {
+      console.error("Error fetching sale items for WhatsApp:", itemsError);
+    }
+
     const customer = customers.find(c => c.id === sale.customer_id);
     let phone = customer?.phone || (sale.customer_name === customerName ? customerPhone : '');
     
@@ -214,16 +225,45 @@ export default function Sales() {
     }
 
     const invoiceNo = `INV-${String(sale.invoice_no || sale.id || '000').slice(-6).padStart(3, '0')}`;
-    const message = `*FlorzyAngel ENT - Official Receipt*%0A%0A` +
-      `Hello ${sale.customer_name}, thank you for your business!%0A%0A` +
-      `*Invoice:* ${invoiceNo}%0A` +
-      `*Date:* ${new Date(sale.created_at || new Date()).toLocaleDateString()}%0A` +
-      `*Total:* GHS ${formatCurrency(sale.total_amount)}%0A` +
-      `*Paid:* GHS ${formatCurrency(sale.amount_paid)}%0A` +
-      `*Balance:* GHS ${formatCurrency(sale.balance_due)}%0A%0A` +
-      `Thank you for shopping with us!`;
+    const date = new Date(sale.created_at || new Date()).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
 
-    const waUrl = `https://wa.me/${phone.replace(/\s+/g, '').replace(/^\+/, '')}?text=${message}`;
+    const divider = "================================";
+    const thinDivider = "--------------------------------";
+    
+    // Format items list
+    let itemsList = "";
+    if (saleItems && saleItems.length > 0) {
+      itemsList = `*ITEMS PURCHASED:*\n`;
+      saleItems.forEach(item => {
+        itemsList += `• ${item.product_name} (x${item.quantity}) - GHS ${formatCurrency(item.subtotal)}\n`;
+      });
+      itemsList += `\n`;
+    }
+
+    const message = 
+      `*FLORZYANGEL ENTERPRISE*\n` +
+      `${divider}\n` +
+      `*OFFICIAL RECEIPT*\n` +
+      `${divider}\n\n` +
+      `*CUSTOMER:* ${sale.customer_name}\n` +
+      `*INVOICE:* #${invoiceNo}\n` +
+      `*DATE:* ${date}\n\n` +
+      itemsList +
+      `${thinDivider}\n` +
+      `*FINANCIAL SUMMARY*\n` +
+      `${thinDivider}\n` +
+      `*Total Amount:* GHS ${formatCurrency(sale.total_amount)}\n` +
+      `*Amount Paid:*  GHS ${formatCurrency(sale.amount_paid)}\n` +
+      `*Balance Due:*  GHS ${formatCurrency(sale.balance_due)}\n` +
+      `${thinDivider}\n\n` +
+      `*Thank you for your business!*\n` +
+      `*Hope to see you again soon!*`;
+
+    const waUrl = `https://wa.me/${phone.replace(/\s+/g, '').replace(/^\+/, '')}?text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank');
   };
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
@@ -44,13 +44,40 @@ const NAV_ITEMS = [
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { user } = useAuth();
-  const [openMenus, setOpenMenus] = useState({ stock: true });
+  const [openMenus, setOpenMenus] = useState(() => {
+    const cached = localStorage.getItem("sidebar_open_menus");
+    return cached ? JSON.parse(cached) : { stock: true };
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Save menu state
+  useEffect(() => {
+    localStorage.setItem("sidebar_open_menus", JSON.stringify(openMenus));
+  }, [openMenus]);
+
+  // Smart Auto-expansion: Open parent menu of current active route
+  useEffect(() => {
+    if (!collapsed) {
+      NAV_ITEMS.forEach(item => {
+        if (item.children?.some(c => location.pathname === c.path)) {
+          setOpenMenus(prev => ({ ...prev, [item.id]: true }));
+        }
+      });
+    }
+  }, [location.pathname, collapsed]);
+
   const toggleMenu = (id) => setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
-  const isActive = (path) => location.pathname === path;
-  const isParentActive = (item) => item.children?.some(c => location.pathname === c.path);
+  const isActive = (path) => {
+    if (!path) return false;
+    // Exact match or sub-route match
+    return location.pathname === path || location.pathname.startsWith(path + "/");
+  };
+
+  const isParentActive = (item) => {
+    // Parent is active if any of its children are active
+    return item.children?.some(child => isActive(child.path));
+  };
 
   const filteredItems = NAV_ITEMS.filter(item => {
     if (item.roles && !item.roles.includes(user?.role)) return false;
@@ -100,6 +127,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 className={`sidebar__item sidebar__item--parent ${isParentActive(item) ? "sidebar__item--active" : ""}`}
                 onClick={() => !collapsed && toggleMenu(item.id)}
                 title={collapsed ? item.label : ""}
+                aria-expanded={!collapsed && openMenus[item.id]}
               >
                 <span className="sidebar__icon">{item.icon}</span>
                 {!collapsed && (
@@ -111,7 +139,10 @@ export default function Sidebar({ collapsed, onToggle }) {
                   </>
                 )}
               </button>
-              {!collapsed && openMenus[item.id] && (
+              <div 
+                className={`sidebar__children-wrapper ${!collapsed && openMenus[item.id] ? "sidebar__children-wrapper--open" : ""}`}
+                aria-hidden={collapsed || !openMenus[item.id]}
+              >
                 <div className="sidebar__children">
                   {item.children.map(child => (
                     <button key={child.id} className={`sidebar__child ${isActive(child.path) ? "sidebar__child--active" : ""}`} onClick={() => navigate(child.path)}>
@@ -119,7 +150,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                     </button>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => navigate(item.path)} title={collapsed ? item.label : ""}>
