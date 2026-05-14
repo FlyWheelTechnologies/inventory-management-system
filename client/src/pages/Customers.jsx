@@ -3,6 +3,7 @@ import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
+import { formatCurrency } from "../services/formatters";
 
 const emptyForm = { name: '', phone: '+233', email: '', address: '', is_contractor: false };
 
@@ -13,7 +14,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
 
   const fetchCustomers = async () => {
-    const { data } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('customer_stats').select('*').order('name', { ascending: true });
     if (data) setCustomers(data);
     setTimeout(() => setLoading(false), 1000);
   };
@@ -31,32 +32,43 @@ export default function Customers() {
   const [sortBy, setSortBy] = useState('name');
   const [showConfirm, setShowConfirm] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [toast, setToast] = useState(null); // { message, type }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
     setSaving(true);
 
+    // Only send updatable fields to prevent 400 error
+    // Only send updatable fields to prevent 400 error (avoiding calculated fields from view)
     const payload = {
-      ...form
+      name: form.name || '',
+      phone: form.phone || '+233',
+      email: form.email || '',
+      address: form.address || '',
+      is_contractor: !!form.is_contractor
     };
     
     try {
       if (editingId) {
         const { error } = await supabase.from('customers').update(payload).eq('id', editingId);
         if (error) throw error;
+        setToast({ message: "Customer updated successfully!", type: "success" });
       } else {
-        payload.created_at = new Date().toISOString();
-        const { error } = await supabase.from('customers').insert([payload]);
+        const { error } = await supabase.from('customers').insert([{ ...payload, created_at: new Date().toISOString() }]);
         if (error) throw error;
+        setToast({ message: "Customer created successfully!", type: "success" });
       }
       
       setForm({ ...emptyForm });
       setShowForm(false);
+      setEditingId(null);
       fetchCustomers();
+      setTimeout(() => setToast(null), 3000);
     } catch (err) {
       console.error("Customer save error:", err);
-      alert("Failed to save customer: " + (err.message || "Unknown error"));
+      setToast({ message: `Failed to save customer: ${err.message || "Unknown error"}`, type: "error" });
+      setTimeout(() => setToast(null), 4000);
     } finally {
       setSaving(false);
     }
@@ -76,11 +88,23 @@ export default function Customers() {
 
   const handleDelete = async () => {
     if (customerToDelete) {
-      await supabase.from('customers').delete().eq('id', customerToDelete.id);
-      setShowConfirm(false);
-      setCustomerToDelete(null);
-      if (selectedCustomer?.id === customerToDelete.id) setSelectedCustomer(null);
-      fetchCustomers();
+      try {
+        const { error } = await supabase.from('customers').delete().eq('id', customerToDelete.id);
+        if (error) {
+          if (error.code === '23503') throw new Error("Cannot delete customer with existing sales records. Try editing instead.");
+          throw error;
+        }
+        setToast({ message: "Customer deleted!", type: "success" });
+        setShowConfirm(false);
+        setCustomerToDelete(null);
+        if (selectedCustomer?.id === customerToDelete.id) setSelectedCustomer(null);
+        fetchCustomers();
+      } catch (err) {
+        console.error("Delete error:", err);
+        setToast({ message: err.message || "Failed to delete customer", type: "error" });
+      } finally {
+        setTimeout(() => setToast(null), 4000);
+      }
     }
   };
 
@@ -140,14 +164,14 @@ export default function Customers() {
         <div className="table-card" style={{ marginBottom: 24 }}>
           <div className="table-card__header"><h3 className="table-card__title">{editingId ? 'Edit Customer' : 'Add New Customer'}</h3></div>
           <form onSubmit={handleSubmit} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <div><label style={lbl}>Full Name *</label><input style={inp} value={form.name} onChange={e => setForm({...form, name: e.target.value})} required /></div>
-            <div><label style={lbl}>Phone Number</label><input style={inp} value={form.phone} onChange={e => {
+            <div><label style={lbl}>Full Name *</label><input style={inp} value={form.name || ''} onChange={e => setForm({...form, name: e.target.value})} required /></div>
+            <div><label style={lbl}>Phone Number</label><input style={inp} value={form.phone || ''} onChange={e => {
               let val = e.target.value;
               if (val.startsWith('0')) val = '+233' + val.substring(1);
               setForm({...form, phone: val});
             }} placeholder="+233XXXXXXXXX" /></div>
-            <div><label style={lbl}>Email Address</label><input style={inp} type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-            <div><label style={lbl}>Address / Location</label><input style={inp} value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
+            <div><label style={lbl}>Email Address</label><input style={inp} type="email" value={form.email || ''} onChange={e => setForm({...form, email: e.target.value})} /></div>
+            <div><label style={lbl}>Address / Location</label><input style={inp} value={form.address || ''} onChange={e => setForm({...form, address: e.target.value})} /></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'center', marginTop: 10 }}>
               <input type="checkbox" id="contractor" checked={form.is_contractor} onChange={e => setForm({...form, is_contractor: e.target.checked})} />
               <label htmlFor="contractor" style={{ fontSize: 13, fontWeight: 600 }}>Is Contractor / Large Buyer?</label>
@@ -156,6 +180,36 @@ export default function Customers() {
               {saving ? 'Saving...' : (editingId ? 'Update Customer' : 'Save Customer')}
             </button>
           </form>
+        </div>
+      )}
+      {/* Success/Error Toast */}
+      {toast && (
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
+            background: toast.type === 'error' ? '#991b1b' : '#064e3b', 
+            color:'#fff', padding:'16px 24px', borderRadius:'16px', 
+            boxShadow:'0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1)', 
+            zIndex:3000, display:'flex', alignItems:'center', gap:15, 
+            animation:'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            minWidth: '300px'
+          }}
+        >
+          <div style={{ fontSize:24 }}>{toast.type === 'error' ? '⚠️' : '✅'}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight:700, fontSize: 14 }}>{toast.message}</div>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
+          >✕</button>
+          <style>{`
+            @keyframes slideDown { 
+              from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+              to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+          `}</style>
         </div>
       )}
 
@@ -183,8 +237,10 @@ export default function Customers() {
                       <div style={{ fontSize: 12 }}>{c.phone}</div>
                     </td>
                     <td><span style={{ background: c.is_contractor ? '#dbeafe' : '#f3f4f6', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{c.is_contractor ? 'Contractor' : 'Regular'}</span></td>
-                    <td style={{ fontSize: 11, color: '#6b7280' }}>{new Date(c.created_at).toLocaleDateString()}</td>
-                    <td style={{ fontWeight: 600 }}>GHS {(c.total_spent || 0).toFixed(1)}</td>
+                    <td style={{ fontSize: 11, color: '#6b7280' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      GHS {formatCurrency(c.total_spent || 0)}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="quick-action-btn" style={{ padding: '4px 8px', fontSize: 11, width: 'auto' }} onClick={() => viewHistory(c)}>History</button>
@@ -240,7 +296,7 @@ export default function Customers() {
       </div>
 
       <ConfirmationModal
-        isOpen={showConfirm}
+        show={showConfirm}
         title="Delete Customer"
         message={`Are you sure you want to delete "${customerToDelete?.name}"? All purchase history records will remain in the sales table but will no longer be linked.`}
         onConfirm={handleDelete}

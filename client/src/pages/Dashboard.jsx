@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import "./Dashboard.css";
@@ -43,6 +43,7 @@ export default function Dashboard() {
   const [depAmount, setDepAmount] = useState('');
   const [depMethod, setDepMethod] = useState('Cash');
   const [depSaving, setDepSaving] = useState(false);
+  const [timeframe, setTimeframe] = useState('7d');
   const [toast, setToast] = useState(null);
 
   const fetchData = async () => {
@@ -189,20 +190,52 @@ export default function Dashboard() {
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const chartData = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toDateString();
-    const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                         .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-    const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                               .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
-    return {
-      name: d.toLocaleDateString([], { weekday: 'short' }),
-      Revenue: daySales,
-      Expenses: dayExpenses
-    };
-  });
+  const getChartData = () => {
+    if (timeframe === '7d' || timeframe === '30d') {
+      const days = timeframe === '7d' ? 7 : 30;
+      return Array.from({ length: days }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (days - 1 - i));
+        const dateStr = d.toDateString();
+        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
+                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
+                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
+        return {
+          name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+          Revenue: daySales,
+          Expenses: dayExpenses
+        };
+      });
+    }
+
+    if (timeframe === 'YoY') {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const thisYear = new Date().getFullYear();
+      const lastYear = thisYear - 1;
+      
+      return months.map((m, i) => {
+        const thisYearSales = sales.filter(s => {
+          const d = new Date(s.created_at);
+          return d.getFullYear() === thisYear && d.getMonth() === i;
+        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+        
+        const lastYearSales = sales.filter(s => {
+          const d = new Date(s.created_at);
+          return d.getFullYear() === lastYear && d.getMonth() === i;
+        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+        
+        return {
+          name: m,
+          'This Year': thisYearSales,
+          'Last Year': lastYearSales
+        };
+      });
+    }
+    return [];
+  };
+
+  const chartData = getChartData();
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
@@ -273,19 +306,62 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: user?.role === 'storekeeper' ? '1fr' : '2fr 1fr', gap: 20, marginTop: 24 }}>
         {user?.role !== 'storekeeper' ? (
           <div className="table-card" style={{ padding: 20, minHeight: 350, overflow: 'hidden' }}>
-            <h3 className="table-card__title" style={{ marginBottom: 20 }}>Revenue vs Expenses (Last 7 Days)</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 className="table-card__title" style={{ margin: 0 }}>
+                {timeframe === 'YoY' ? 'Year-over-Year Sales' : `Revenue Trend (${timeframe === '7d' ? '7D' : '30D'})`}
+              </h3>
+              <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3 }}>
+                {['7d', '30d', 'YoY'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTimeframe(t)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: timeframe === t ? '#fff' : 'transparent',
+                      color: timeframe === t ? '#f15a24' : '#6b7280',
+                      boxShadow: timeframe === t ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    }}
+                  >
+                    {t === '7d' ? '7D' : t === '30d' ? '30D' : 'YoY'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="chart-container" style={{ height: 350, width: '100%', minWidth: 0 }}>
               {chartData && chartData.length > 0 && (
-                <ResponsiveContainer width="100%" height="100%" minHeight={350} minWidth={0}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
-                    <ChartTooltip cursor={{fill: '#f8faff'}} contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: 20 }} />
-                    <Bar dataKey="Revenue" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} barSize={30} />
-                    <Bar dataKey="Expenses" fill="var(--brand-secondary)" radius={[4, 4, 0, 0]} barSize={30} />
-                  </BarChart>
+                <ResponsiveContainer width="100%" height="100%" minHeight={350} minWidth={0} debounce={50}>
+                  {timeframe === 'YoY' ? (
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                      <ChartTooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ paddingTop: 10 }} />
+                      <Line type="monotone" dataKey="This Year" stroke="#f15a24" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                      <Line type="monotone" dataKey="Last Year" stroke="#9ca3af" strokeWidth={2} strokeDasharray="5 5" dot={{r: 3}} />
+                    </LineChart>
+                  ) : (
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f15a24" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#f15a24" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                      <ChartTooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ paddingTop: 10 }} />
+                      <Area type="monotone" dataKey="Revenue" stroke="#f15a24" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                      <Area type="monotone" dataKey="Expenses" stroke="#6b7280" strokeWidth={2} fillOpacity={0} />
+                    </AreaChart>
+                  )}
                 </ResponsiveContainer>
               )}
             </div>

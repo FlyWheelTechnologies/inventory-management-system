@@ -107,7 +107,8 @@ export default function Products() {
       setTimeout(() => setToast(null), 4000);
     } catch (err) {
       console.error("Product save error:", err);
-      setError(`Failed to save product: ${err.message || "Please check your network"}. Draft still held.`);
+      setToast({ message: `Failed to save product: ${err.message || "Please check your network"}`, type: "error" });
+      setTimeout(() => setToast(null), 4000);
     } finally {
       setSaving(false);
     }
@@ -178,6 +179,13 @@ export default function Products() {
       if (sortBy === 'stock_low') return a.stock_quantity - b.stock_quantity;
       if (sortBy === 'stock_high') return b.stock_quantity - a.stock_quantity;
       if (sortBy === 'price_high') return b.selling_price - a.selling_price;
+      if (sortBy === 'price_low') return a.selling_price - b.selling_price;
+      if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+      if (sortBy === 'margin') {
+        const marginA = a.selling_price > 0 ? (a.selling_price - a.cost_price) / a.selling_price : 0;
+        const marginB = b.selling_price > 0 ? (b.selling_price - b.cost_price) / b.selling_price : 0;
+        return marginB - marginA;
+      }
       return a.name.localeCompare(b.name);
     });
 
@@ -311,14 +319,31 @@ export default function Products() {
       </div>
       )}
 
-      {/* Success Toast */}
+      {/* Success/Error Toast */}
       {toast && (
-        <div style={{ position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', background:'#064e3b', color:'#fff', padding:'12px 24px', borderRadius:'12px', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:2000, display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' }}>
-          <span style={{fontSize:18}}>✅</span>
-          <span style={{fontWeight:600}}>{toast.message}</span>
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
+            background: toast.type === 'error' ? '#991b1b' : '#064e3b', 
+            color:'#fff', padding:'16px 24px', borderRadius:'16px', 
+            boxShadow:'0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1)', 
+            zIndex:3000, display:'flex', alignItems:'center', gap:15, 
+            animation:'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            minWidth: '300px'
+          }}
+        >
+          <div style={{ fontSize:24 }}>{toast.type === 'error' ? '⚠️' : '✅'}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight:700, fontSize: 14 }}>{toast.message}</div>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
+          >✕</button>
           <style>{`
             @keyframes slideDown { 
-              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+              from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
               to { transform: translateX(-50%) translateY(0); opacity: 1; }
             }
           `}</style>
@@ -342,12 +367,15 @@ export default function Products() {
             <div style={{ position: 'relative' }}>
               <select style={{ ...miniInp, paddingLeft: 30 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
                 <option value="name">Sort by Name</option>
+                <option value="newest">Newest Added</option>
+                <option value="margin">Best Margin</option>
                 <option value="stock_low">Low Stock First</option>
                 <option value="stock_high">High Stock First</option>
                 <option value="price_high">Price: High to Low</option>
+                <option value="price_low">Price: Low to High</option>
               </select>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}>
-                <path d="M15 18H3M21 12H3M21 6H3"/>
+                <path d="M3 6h18M6 12h12m-9 6h6"/>
               </svg>
             </div>
 
@@ -369,7 +397,7 @@ export default function Products() {
         <div className="table-wrapper">
           <table className="stock-table">
             <thead><tr>
-              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Buy Unit</th><th>Sell Unit</th><th>Cost</th><th>Price</th><th>Status</th>{!isAuditor && <th>Actions</th>}
+              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Sell Unit</th><th>Cost</th><th>Price</th><th>Margin</th><th>Status</th>{!isAuditor && <th>Actions</th>}
             </tr></thead>
             <tbody>
               {paginated.length === 0 ? (
@@ -380,10 +408,12 @@ export default function Products() {
                   <td style={{fontWeight:500}}>{p.name}</td>
                   <td><span style={{background:'#f3f4f6', padding:'2px 8px', borderRadius:4, fontSize:12}}>{p.category}</span></td>
                   <td style={{fontWeight:600}}>{p.stock_quantity} {p.selling_uom}s</td>
-                  <td>{p.buying_uom}</td>
                   <td>{p.selling_uom}</td>
                   <td>GHS {formatCurrency(p.cost_price)}</td>
                   <td style={{fontWeight:600}}>GHS {formatCurrency(p.selling_price)}</td>
+                  <td style={{color: (p.selling_price - p.cost_price) / p.selling_price > 0.2 ? '#059669' : '#f59e0b', fontWeight: 600}}>
+                    {p.selling_price > 0 ? (((p.selling_price - p.cost_price) / p.selling_price) * 100).toFixed(1) : 0}%
+                  </td>
                   <td>
                     {p.stock_quantity <= 0 ? (
                       <span className="status-pill" style={{ background: '#000', color: '#fff' }}>DEPLETED</span>

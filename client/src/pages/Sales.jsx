@@ -199,20 +199,25 @@ export default function Sales() {
   };
 
   const shareViaWhatsApp = (sale) => {
+    if (!sale) return;
     const customer = customers.find(c => c.id === sale.customer_id);
-    const phone = customer?.phone || (sale.customer_name === customerName ? customerPhone : '');
+    let phone = customer?.phone || (sale.customer_name === customerName ? customerPhone : '');
     
-    if (!phone) {
+    // Fallback/Format phone
+    if (phone && phone.startsWith('0')) phone = '+233' + phone.substring(1);
+    if (phone && !phone.startsWith('+')) phone = '+233' + phone;
+
+    if (!phone || phone === '+233') {
       setToast({ message: "No phone number available for this customer.", type: "error" });
       setTimeout(() => setToast(null), 3000);
       return;
     }
 
-    const invoiceNo = `INV-${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}`;
+    const invoiceNo = `INV-${String(sale.invoice_no || sale.id || '000').slice(-6).padStart(3, '0')}`;
     const message = `*FlorzyAngel ENT - Official Receipt*%0A%0A` +
       `Hello ${sale.customer_name}, thank you for your business!%0A%0A` +
       `*Invoice:* ${invoiceNo}%0A` +
-      `*Date:* ${new Date(sale.created_at).toLocaleDateString()}%0A` +
+      `*Date:* ${new Date(sale.created_at || new Date()).toLocaleDateString()}%0A` +
       `*Total:* GHS ${formatCurrency(sale.total_amount)}%0A` +
       `*Paid:* GHS ${formatCurrency(sale.amount_paid)}%0A` +
       `*Balance:* GHS ${formatCurrency(sale.balance_due)}%0A%0A` +
@@ -309,10 +314,18 @@ export default function Sales() {
       setToast({ 
         message: "Sale recorded successfully!", 
         type: "success",
-        action: () => shareViaWhatsApp(newSale || { ...payload, id: 'latest' }), // Approximate if rpc doesn't return ID
-        actionLabel: "Send WhatsApp"
+        action: () => shareViaWhatsApp({
+          id: newSaleId,
+          customer_id: resolvedCustomerId,
+          customer_name: customerName,
+          total_amount: grandTotal,
+          amount_paid: payloadAmountPaid + (parseFloat(useCredit) || 0),
+          balance_due: balance,
+          created_at: new Date().toISOString()
+        }),
+        actionLabel: "Send WhatsApp Receipt"
       });
-      setTimeout(() => setToast(null), 6000);
+      setTimeout(() => setToast(null), 10000); // 10s or until close
     } catch (err) {
       console.error(err);
       setShowConfirm(false);
@@ -734,22 +747,43 @@ export default function Sales() {
 
       {/* Success Toast */}
       {toast && (
-        <div style={{ position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', background:'#064e3b', color:'#fff', padding:'12px 24px', borderRadius:'12px', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:2000, display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' }}>
-          <span style={{fontSize:18}}>✅</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{fontWeight:600}}>{toast.message}</span>
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
+            background: toast.type === 'error' ? '#991b1b' : '#064e3b', 
+            color:'#fff', padding:'16px 24px', borderRadius:'16px', 
+            boxShadow:'0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1)', 
+            zIndex:3000, display:'flex', alignItems:'center', gap:15, 
+            animation:'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            minWidth: '300px'
+          }}
+        >
+          <div style={{ fontSize:24 }}>{toast.type === 'error' ? '⚠️' : '✅'}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight:700, fontSize: 14 }}>{toast.message}</div>
             {toast.action && (
               <button 
-                onClick={toast.action}
-                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', marginTop: 4 }}
+                onClick={() => { toast.action(); setToast(null); }}
+                style={{ 
+                  background: '#f15a24', border: 'none', color: '#fff', 
+                  padding: '6px 12px', borderRadius: '8px', fontSize: '11px', 
+                  fontWeight: 800, cursor: 'pointer', marginTop: 8,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                }}
               >
-                📱 {toast.actionLabel}
+                <span>📱</span> {toast.actionLabel}
               </button>
             )}
           </div>
+          <button 
+            onClick={() => setToast(null)}
+            style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
+          >✕</button>
           <style>{`
             @keyframes slideDown { 
-              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+              from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
               to { transform: translateX(-50%) translateY(0); opacity: 1; }
             }
           `}</style>
