@@ -159,22 +159,30 @@ export default function Products() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const lines = ev.target.result.split("\n").slice(1);
-      let count = 0;
+      const productsToInsert = [];
       for (const line of lines) {
         const [,name,category,buying_uom,selling_uom,conversion_factor,cost_price,selling_price,stock_quantity] = line.split(",");
         if (!name) continue;
-        await supabase.from('products').insert([{
+        productsToInsert.push({
           name,category,buying_uom,selling_uom,
           conversion_factor: parseFloat(conversion_factor),
           cost_price: parseFloat(cost_price),
           selling_price: parseFloat(selling_price),
           stock_quantity: parseFloat(stock_quantity),
           created_at: new Date().toISOString()
-        }]);
-        count++;
+        });
       }
-      fetchProducts();
-      alert(`Imported ${count} products`);
+
+      if (productsToInsert.length > 0) {
+        const { error } = await supabase.from('products').insert(productsToInsert);
+        if (error) {
+          console.error("Bulk import error:", error);
+          alert(`Import failed: ${error.message}`);
+        } else {
+          fetchProducts();
+          alert(`Imported ${productsToInsert.length} products`);
+        }
+      }
     };
     reader.readAsText(file);
   };
