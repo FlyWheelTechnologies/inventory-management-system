@@ -169,5 +169,14 @@ export const SalesService = {
     const { data, error } = await supabase.rpc('record_sale_transaction', params);
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Records multiple sale transactions in a single batch call via Supabase RPC
+   */
+  async recordSaleTransactionsBatch(salesArray) {
+    const { data, error } = await supabase.rpc('record_sale_transactions_batch', { p_sales: salesArray });
+    if (error) throw error;
+    return data;
   }
 };

@@ -97,11 +97,12 @@ export default function Sales() {
 
         setSaving(true);
         try {
+          const payloads = [];
           for (const row of salesToImport) {
             const prod = products.find(p => p.name.toLowerCase() === row.product?.toLowerCase()) || products[0];
             if (!prod) continue;
 
-            const payload = {
+            payloads.push({
               p_customer_name: row.customer || 'Walk-in Customer',
               p_total_amount: parseFloat(row.price) * parseFloat(row.quantity) || 0,
               p_amount_paid: parseFloat(row.paid) || 0,
@@ -115,10 +116,13 @@ export default function Sales() {
                 subtotal: (parseFloat(row.quantity) || 1) * (parseFloat(row.price) || prod.selling_price)
               }],
               p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import'
-            };
-
-            await SalesService.recordSaleTransaction(payload);
+            });
           }
+
+          if (payloads.length > 0) {
+            await SalesService.recordSaleTransactionsBatch(payloads);
+          }
+
           alert("Import completed successfully!");
           fetchData();
         } catch (err) {
@@ -233,7 +237,7 @@ export default function Sales() {
   const initialDraft = (() => {
     const savedDraft = localStorage.getItem("sales_draft");
     if (savedDraft) {
-      try { return JSON.parse(savedDraft); } catch (e) { return {}; }
+      try { return JSON.parse(savedDraft); } catch { return {}; }
     }
     return {};
   })();
