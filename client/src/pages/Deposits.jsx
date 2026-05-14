@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 
 export default function Deposits() {
+  const location = useLocation();
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
@@ -35,7 +37,13 @@ export default function Deposits() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [saleToFulfill, setSaleToFulfill] = useState(null);
 
-  useEffect(() => { fetchDeposits(); }, []);
+  useEffect(() => { 
+    fetchDeposits(); 
+    if (location.state?.showForm) {
+      setShowDepositModal(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const fetchDeposits = async () => {
     const [depRes, prodRes] = await Promise.all([

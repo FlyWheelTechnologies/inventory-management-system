@@ -69,6 +69,13 @@ export default function Sales() {
       setIsDeposit(true);
       setShowForm(true);
     }
+    if (location.state?.showForm) {
+      setShowForm(true);
+    }
+    // Clear state after handling it
+    if (location.state) {
+      window.history.replaceState({}, document.title);
+    }
   }, [location]);
 
   const filteredCustomers = customerSearch.length > 0

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -19,6 +20,7 @@ const emptyForm = { name:'', category:'General', buying_uom:'Piece', selling_uom
 
 export default function Products() {
   const { user } = useAuth();
+  const location = useLocation();
   const isAuditor = user?.role === 'auditor';
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,13 @@ export default function Products() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.showForm) {
+      setShowForm(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   const [form, setForm] = useState({...emptyForm});
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);

@@ -259,10 +259,10 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 10 }}>
           {user?.role !== 'auditor' && (
             <>
-              <button className="quick-action-btn" style={{ background: '#6b7280' }} onClick={() => navigate("/expenses")}>Record Expense</button>
-              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => setShowDepositModal(true)}>📥 Record Deposit</button>
-              <button className="quick-action-btn" style={{ background: '#4f46e5' }} onClick={() => navigate("/products")}>+ Add Product</button>
-              <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales")}>Record Sale</button>
+              <button className="quick-action-btn" style={{ background: '#6b7280' }} onClick={() => navigate("/expenses", { state: { showForm: true } })}>Record Expense</button>
+              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => navigate("/deposits", { state: { showForm: true } })}>📥 Record Deposit</button>
+              <button className="quick-action-btn" style={{ background: '#4f46e5' }} onClick={() => navigate("/products", { state: { showForm: true } })}>+ Add Product</button>
+              <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales", { state: { showForm: true } })}>Record Sale</button>
             </>
           )}
         </div>
