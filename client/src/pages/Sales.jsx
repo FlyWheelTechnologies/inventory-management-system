@@ -7,12 +7,6 @@ import autoTable from 'jspdf-autotable';
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 
-const playSound = (type) => {
-  // Sounds currently disabled as files are missing
-  // const audio = new Audio(type === 'success' ? '/sounds/success.mp3' : '/sounds/error.mp3');
-  // audio.play().catch(() => {});
-};
-
 const InfoTip = ({ text }) => (
   <span className="info-tip" title={text}>ⓘ
     <span className="info-tip__content">{text}</span>
