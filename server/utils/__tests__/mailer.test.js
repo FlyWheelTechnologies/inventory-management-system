@@ -37,6 +37,21 @@ describe('mailer utils', () => {
       expect(mockSend).not.toHaveBeenCalled();
     });
 
+    it('should return undefined and not call resend if customer is undefined', async () => {
+      const result = await sendReceiptEmail(mockSale, undefined);
+
+      expect(result).toBeUndefined();
+      expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it('should return undefined and not call resend if customer email is an empty string', async () => {
+      const customerWithEmptyEmail = { name: 'John Doe', email: '' };
+      const result = await sendReceiptEmail(mockSale, customerWithEmptyEmail);
+
+      expect(result).toBeUndefined();
+      expect(mockSend).not.toHaveBeenCalled();
+    });
+
     it('should return undefined and not call resend if customer is null', async () => {
       const result = await sendReceiptEmail(mockSale, null);
 
