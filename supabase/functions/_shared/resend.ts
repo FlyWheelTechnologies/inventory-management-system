@@ -20,7 +20,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: 'FlorzyAngel Enterprise <onboarding@resend.dev>',
+      from: 'FlorzyAngel Enterprise <team@ims.bookflywheel.com>',
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
