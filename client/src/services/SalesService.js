@@ -178,18 +178,26 @@ export const SalesService = {
    * Exports sales data to CSV
    */
   exportToCSV(sales) {
-    const headers = ["Invoice #", "Date", "Customer", "Total Amount", "Amount Paid", "Balance", "Status", "Method", "Recorded By"];
-    const rows = sales.map(s => [
-      `INV-${String(s.invoice_no || s.id).padStart(3, '0')}`,
-      new Date(s.created_at).toLocaleDateString(),
-      s.customer_name,
-      s.total_amount,
-      s.amount_paid,
-      s.balance_due,
-      s.payment_status,
-      s.payment_method,
-      s.recorded_by
-    ]);
+    const headers = ["Invoice #", "Date", "Customer", "Net Amount", "Tax Amount", "Total Amount", "Amount Paid", "Balance", "Status", "Method", "Recorded By"];
+    const rows = sales.map(s => {
+      const tax = parseFloat(s.tax_amount) || 0;
+      const total = parseFloat(s.total_amount) || 0;
+      const net = total - tax;
+      
+      return [
+        `INV-${String(s.invoice_no || s.id).padStart(3, '0')}`,
+        new Date(s.created_at).toLocaleDateString(),
+        s.customer_name,
+        net.toFixed(2),
+        tax.toFixed(2),
+        total.toFixed(2),
+        s.amount_paid,
+        s.balance_due,
+        s.payment_status,
+        s.payment_method,
+        s.recorded_by
+      ];
+    });
 
     const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
