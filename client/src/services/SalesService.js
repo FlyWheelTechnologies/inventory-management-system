@@ -47,14 +47,22 @@ export const SalesService = {
     doc.text(`GRAND TOTAL:`, 35, finalY);
     doc.text(`GHS ${parseFloat(sale.total_amount).toFixed(1)}`, 75, finalY, { align: 'right' });
 
+    let offset = 5;
+    if (sale.tax_inclusive) {
+      doc.setFontSize(7);
+      doc.setFont(undefined, 'italic');
+      doc.text(`(Tax Inclusive)`, 35, finalY + 3);
+      offset = 8;
+    }
+
     doc.setFontSize(8);
     doc.setFont(undefined, 'normal');
-    doc.text(`Amount Paid:`, 35, finalY + 5);
-    doc.text(`GHS ${parseFloat(sale.amount_paid).toFixed(1)}`, 75, finalY + 5, { align: 'right' });
+    doc.text(`Amount Paid:`, 35, finalY + offset);
+    doc.text(`GHS ${parseFloat(sale.amount_paid).toFixed(1)}`, 75, finalY + offset, { align: 'right' });
 
-    doc.text(`Balance Due:`, 35, finalY + 9);
+    doc.text(`Balance Due:`, 35, finalY + offset + 4);
     doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
-    doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(1)}`, 75, finalY + 9, { align: 'right' });
+    doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
 
     doc.setTextColor(156, 163, 175);
     doc.setFontSize(6);
@@ -124,7 +132,7 @@ export const SalesService = {
       `${thinDivider}\n` +
       `*FINANCIAL SUMMARY*\n` +
       `${thinDivider}\n` +
-      `*Total Amount:* GHS ${formatCurrency(sale.total_amount)}\n` +
+      `*Total Amount:* GHS ${formatCurrency(sale.total_amount)}${sale.tax_inclusive ? ' _(Tax Inclusive)_' : ''}\n` +
       `*Amount Paid:*  GHS ${formatCurrency(sale.amount_paid)}\n` +
       `*Balance Due:*  GHS ${formatCurrency(sale.balance_due)}\n` +
       `${thinDivider}\n\n` +

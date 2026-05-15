@@ -176,8 +176,11 @@ export default function Dashboard() {
 
   // Real Insights Calculations
   const bestSeller = products.length > 0 
-    ? [...products].sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))[0]?.name || 'No sales yet'
-    : 'No products';
+    ? [...products]
+        .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
+        .slice(0, 3)
+        .map(p => p.name)
+    : [];
 
   const totalRevenue = sales
     .filter(s => s.payment_status !== 'DEPOSIT')
@@ -303,7 +306,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: user?.role === 'storekeeper' ? '1fr' : '2fr 1fr', gap: 20, marginTop: 24 }}>
+      <div className={`dashboard-grid ${user?.role === 'storekeeper' ? 'dashboard-grid--storekeeper' : ''}`}>
         {user?.role !== 'storekeeper' ? (
           <div className="table-card" style={{ padding: 20, minHeight: 350, overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -392,11 +395,17 @@ export default function Dashboard() {
             
             {user?.role !== 'storekeeper' && (
               <>
-                <h3 className="table-card__title" style={{ marginTop: 30, marginBottom: 15 }}>Quick Insights</h3>
+                <h3 className="table-card__title" style={{ marginTop: 30, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 6 }}>✨ Quick Insights</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div className="summary-card">
-                    <div className="summary-card__label">Best Seller</div>
-                    <div className="summary-card__value">{bestSeller}</div>
+                    <div className="summary-card__label">Best Sellers</div>
+                    <div className="summary-card__value" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                      {Array.isArray(bestSeller) && bestSeller.length > 0 ? bestSeller.map((name, idx) => (
+                        <div key={idx} style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{idx + 1}. {name}</div>
+                      )) : (
+                        <div style={{ fontSize: 13, color: '#9ca3af' }}>No sales yet</div>
+                      )}
+                    </div>
                     <div className="summary-card__sub">Top items by volume</div>
                   </div>
                   <div className="summary-card" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>

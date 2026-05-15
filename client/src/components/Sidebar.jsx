@@ -94,6 +94,13 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""}`}>
+      <button className="sidebar__collapse-btn" onClick={onToggle} title={collapsed ? "Expand" : "Collapse"}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: collapsed ? "rotate(180deg)" : "none", transition: "transform 0.3s" }}>
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        {!collapsed && <span>Collapse</span>}
+      </button>
+
       <div className="sidebar__logo">
         <div className="sidebar__logo-icon">
           <img src="/logo.png" alt="Flywheel Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -160,13 +167,6 @@ export default function Sidebar({ collapsed, onToggle }) {
           )
         )}
       </nav>
-
-      <button className="sidebar__collapse-btn" onClick={onToggle} title={collapsed ? "Expand" : "Collapse"}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: collapsed ? "rotate(180deg)" : "none", transition: "transform 0.3s" }}>
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        {!collapsed && <span>Collapse</span>}
-      </button>
     </aside>
   );
 }

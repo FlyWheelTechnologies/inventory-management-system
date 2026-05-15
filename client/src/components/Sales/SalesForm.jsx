@@ -27,7 +27,7 @@ const SalesForm = ({
   const [taxPercentage, setTaxPercentage] = useState(initialData.taxPercentage || 20);
   const [taxInclusive, setTaxInclusive] = useState(initialData.taxInclusive !== undefined ? initialData.taxInclusive : true);
   const [customerCredit, setCustomerCredit] = useState(0);
-  const [useCredit, setUseCredit] = useState(0);
+  const [useCredit, setUseCredit] = useState(initialData.useCredit || '');
 
   // --- Draft Persistence ---
   useEffect(() => {
@@ -301,10 +301,10 @@ const SalesForm = ({
               <label style={{ fontSize: 12, fontWeight: 600 }}>Apply Credit: </label>
               <input
                 type="number"
-                max={Math.min(customerCredit, grandTotal)}
+                step="0.01"
                 style={{ ...inp, width: 100, border: '1.5px solid #22c55e' }}
                 value={useCredit}
-                onChange={e => setUseCredit(Math.min(parseFloat(e.target.value) || 0, customerCredit, grandTotal))}
+                onChange={e => setUseCredit(e.target.value)}
               />
               <button
                 type="button"
