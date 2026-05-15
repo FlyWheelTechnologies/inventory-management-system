@@ -396,10 +396,14 @@ app.post('/api/sales', async (req, res) => {
         if (items && items.length > 0) {
           const admin = await dbGet('SELECT email FROM users WHERE role = "admin" LIMIT 1');
           if (admin) {
-            for (const item of items) {
-              const product = await dbGet('SELECT * FROM products WHERE id = ?', [item.product_id]);
-              if (product && product.stock_quantity < product.low_stock_threshold) {
-                await sendLowStockAlert(admin.email, product);
+            const productIds = items.map(item => item.product_id);
+            if (productIds.length > 0) {
+              const placeholders = productIds.map(() => '?').join(',');
+              const products = await dbAll(`SELECT * FROM products WHERE id IN (${placeholders})`, productIds);
+              for (const product of products) {
+                if (product && product.stock_quantity < product.low_stock_threshold) {
+                  await sendLowStockAlert(admin.email, product);
+                }
               }
             }
           }
