@@ -165,10 +165,11 @@ export default function Deposits() {
   };
 
   const filtered = deposits
-    .filter(d => 
-      d.customer_name?.toLowerCase().includes(search.toLowerCase()) || 
-      d.phone?.includes(search)
-    )
+    .filter(d => {
+      const matchesSearch = d.customer_name?.toLowerCase().includes(search.toLowerCase()) || d.phone?.includes(search);
+      const hasBalanceOrPending = (d.total_balance || 0) !== 0 || (d.pending_sales_count || 0) > 0;
+      return matchesSearch && hasBalanceOrPending;
+    })
     .sort((a, b) => {
       if (sortBy === 'latest') return new Date(b.last_sale_date) - new Date(a.last_sale_date);
       if (sortBy === 'oldest') return new Date(a.last_sale_date) - new Date(b.last_sale_date);
@@ -279,12 +280,14 @@ export default function Deposits() {
                       )}
                     </td>
                     <td style={{fontSize:12, color:'#6b7280'}}>{d.last_sale_date ? new Date(d.last_sale_date).toLocaleDateString() : '—'}</td>
-                    <td style={{fontWeight:700, color: (d.total_balance || 0) < 0 ? '#059669' : '#b91c1c'}}>
+                    <td style={{fontWeight:700, color: (d.total_balance || 0) < 0 ? '#059669' : ((d.total_balance || 0) === 0 ? '#6b7280' : '#b91c1c')}}>
                       {(d.total_balance || 0) < 0 ? (
                         <span title="Customer has credit">GHS {formatCurrency(Math.abs(d.total_balance || 0))} (Credit)</span>
+                      ) : ((d.total_balance || 0) === 0 ? (
+                        <span title="No balance">GHS 0.00</span>
                       ) : (
                         <span title="Customer owes balance">GHS {formatCurrency(d.total_balance || 0)} (Due)</span>
-                      )}
+                      ))}
                     </td>
                   </tr>
                   {expandedCustomerId === d.customer_id && (

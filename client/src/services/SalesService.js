@@ -55,14 +55,33 @@ export const SalesService = {
       offset = 8;
     }
 
+    let amountPaidDisplay = parseFloat(sale.amount_paid);
+    let balanceDueDisplay = parseFloat(sale.balance_due);
+    let changeDisplay = 0;
+
+    if (sale.notes && sale.notes.includes('Change given: GHS')) {
+      const match = sale.notes.match(/Change given: GHS ([\d.]+)/);
+      if (match) {
+        changeDisplay = parseFloat(match[1]);
+        amountPaidDisplay = parseFloat(sale.total_amount) + changeDisplay;
+        balanceDueDisplay = 0;
+      }
+    }
+
     doc.setFontSize(8);
     doc.setFont(undefined, 'normal');
-    doc.text(`Amount Paid:`, 35, finalY + offset);
-    doc.text(`GHS ${parseFloat(sale.amount_paid).toFixed(1)}`, 75, finalY + offset, { align: 'right' });
+    doc.text(changeDisplay > 0 ? `Amount Tendered:` : `Amount Paid:`, 35, finalY + offset);
+    doc.text(`GHS ${amountPaidDisplay.toFixed(1)}`, 75, finalY + offset, { align: 'right' });
 
-    doc.text(`Balance Due:`, 35, finalY + offset + 4);
-    doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
-    doc.text(`GHS ${parseFloat(sale.balance_due).toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
+    if (changeDisplay > 0) {
+      doc.text(`Change:`, 35, finalY + offset + 4);
+      doc.setTextColor(5, 150, 105); // Green
+      doc.text(`GHS ${changeDisplay.toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
+    } else {
+      doc.text(`Balance Due:`, 35, finalY + offset + 4);
+      doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
+      doc.text(`GHS ${balanceDueDisplay.toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
+    }
 
     doc.setTextColor(156, 163, 175);
     doc.setFontSize(6);
@@ -120,6 +139,19 @@ export const SalesService = {
       itemsList += `\n`;
     }
 
+    let amountPaidDisplay = parseFloat(sale.amount_paid);
+    let balanceDueDisplay = parseFloat(sale.balance_due);
+    let changeDisplay = 0;
+
+    if (sale.notes && sale.notes.includes('Change given: GHS')) {
+      const match = sale.notes.match(/Change given: GHS ([\d.]+)/);
+      if (match) {
+        changeDisplay = parseFloat(match[1]);
+        amountPaidDisplay = parseFloat(sale.total_amount) + changeDisplay;
+        balanceDueDisplay = 0;
+      }
+    }
+
     const message =
       `*FLORZYANGEL ENTERPRISE*\n` +
       `${divider}\n` +
@@ -133,8 +165,7 @@ export const SalesService = {
       `*FINANCIAL SUMMARY*\n` +
       `${thinDivider}\n` +
       `*Total Amount:* GHS ${formatCurrency(sale.total_amount)}${sale.tax_inclusive ? ' _(Tax Inclusive)_' : ''}\n` +
-      `*Amount Paid:*  GHS ${formatCurrency(sale.amount_paid)}\n` +
-      `*Balance Due:*  GHS ${formatCurrency(sale.balance_due)}\n` +
+      `${changeDisplay > 0 ? `*Amount Tendered:* GHS ${formatCurrency(amountPaidDisplay)}\n*Change:*          GHS ${formatCurrency(changeDisplay)}` : `*Amount Paid:*  GHS ${formatCurrency(amountPaidDisplay)}\n*Balance Due:*  GHS ${formatCurrency(balanceDueDisplay)}`}\n` +
       `${thinDivider}\n\n` +
       `*Thank you for your business!*\n` +
       `*Hope to see you again soon!*`;

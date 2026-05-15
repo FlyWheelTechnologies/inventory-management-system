@@ -101,12 +101,6 @@ export default function Dashboard() {
     }
   };
   const [showAudit, setShowAudit] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -158,7 +152,7 @@ export default function Dashboard() {
   }
 
   const getGreeting = () => {
-    const hour = currentTime.getHours();
+    const hour = new Date().getHours();
     if (hour < 12) return "Morning";
     if (hour < 17) return "Afternoon";
     return "Evening";
