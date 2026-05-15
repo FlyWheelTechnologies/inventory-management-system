@@ -45,7 +45,93 @@ export default function Sales() {
     } finally {
       setTimeout(() => setLoading(false), 1000);
     }
-  }
+    if (location.state?.showForm) {
+      setShowForm(true);
+    }
+    // Clear state after handling it
+    if (location.state) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  const filtered = useMemo(() => {
+    return sales
+      .filter(s => s.customer_name?.toLowerCase().includes(search.toLowerCase()))
+      .filter(s => statusFilter === 'All' || s.payment_status === statusFilter)
+      .filter(s => !dateFilter || new Date(s.created_at).toDateString() === new Date(dateFilter).toDateString())
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [sales, search, statusFilter, dateFilter]);
+
+  const paginated = useMemo(() => {
+    return filtered.slice(0, itemsToShow);
+  }, [filtered, itemsToShow]);
+
+  const handleExportCSV = () => {
+    SalesService.exportToCSV(filtered);
+  };
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      if (lines.length <= 1) return;
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const salesToImport = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row = {};
+        headers.forEach((h, idx) => row[h] = values[idx]);
+        salesToImport.push(row);
+      }
+
+      if (salesToImport.length > 0) {
+        if (!window.confirm(`Found ${salesToImport.length} records. Import them now?`)) return;
+
+        setSaving(true);
+        try {
+          const payloads = [];
+          for (const row of salesToImport) {
+            const prod = products.find(p => p.name.toLowerCase() === row.product?.toLowerCase()) || products[0];
+            if (!prod) continue;
+
+            payloads.push({
+              p_customer_name: row.customer || 'Walk-in Customer',
+              p_total_amount: parseFloat(row.price) * parseFloat(row.quantity) || 0,
+              p_amount_paid: parseFloat(row.paid) || 0,
+              p_payment_method: row.method || 'Cash',
+              p_payment_status: 'PAID',
+              p_items: [{
+                product_id: prod.id,
+                product_name: prod.name,
+                quantity: parseFloat(row.quantity) || 1,
+                unit_price: parseFloat(row.price) || prod.selling_price,
+                subtotal: (parseFloat(row.quantity) || 1) * (parseFloat(row.price) || prod.selling_price)
+              }],
+              p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import'
+            });
+          }
+
+          if (payloads.length > 0) {
+            await SalesService.recordSaleTransactionsBatch(payloads);
+          }
+
+          alert("Import completed successfully!");
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          alert("Import failed: " + err.message);
+        } finally {
+          setSaving(false);
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleSaleSave = (data) => {
     setPendingSaleData(data);
@@ -132,11 +218,13 @@ export default function Sales() {
     }
   };
 
-  const filtered = useMemo(() => {
-    return sales.filter(s => {
-      const matchesSearch = s.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-                          String(s.invoice_no).includes(search);
-      const matchesStatus = statusFilter === 'All' || s.payment_status === statusFilter;
+  const initialDraft = (() => {
+    const savedDraft = localStorage.getItem("sales_draft");
+    if (savedDraft) {
+      try { return JSON.parse(savedDraft); } catch { return {}; }
+    }
+    return {};
+  })();
 
       let matchesDate = true;
       if (dateFilter === 'Today') matchesDate = new Date(s.created_at).toDateString() === new Date().toDateString();

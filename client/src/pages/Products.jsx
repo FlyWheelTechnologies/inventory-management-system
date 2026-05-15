@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -8,6 +10,8 @@ import { ProductsService } from "../services/ProductsService";
 
 export default function Products() {
   const { user } = useAuth();
+  const location = useLocation();
+  const isAuditor = user?.role === 'auditor';
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -35,7 +39,19 @@ export default function Products() {
   };
   const [formData, setFormData] = useState(initialForm);
 
-  // Deletion
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    if (location.state?.showForm) {
+      setShowForm(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+  const [form, setForm] = useState({...emptyForm});
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
 
@@ -109,12 +125,39 @@ export default function Products() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Filter & Sort Logic
-  const filtered = useMemo(() => {
-    let result = products.filter(p =>
-      (p.name.toLowerCase().includes(search.toLowerCase()) || (p.item_code || "").toLowerCase().includes(search.toLowerCase())) &&
-      (categoryFilter === "All" || p.category === categoryFilter)
-    );
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const lines = ev.target.result.split("\n").slice(1);
+      const productsToInsert = [];
+      for (const line of lines) {
+        const [,name,category,buying_uom,selling_uom,conversion_factor,cost_price,selling_price,stock_quantity] = line.split(",");
+        if (!name) continue;
+        productsToInsert.push({
+          name,category,buying_uom,selling_uom,
+          conversion_factor: parseFloat(conversion_factor),
+          cost_price: parseFloat(cost_price),
+          selling_price: parseFloat(selling_price),
+          stock_quantity: parseFloat(stock_quantity),
+          created_at: new Date().toISOString()
+        });
+      }
+
+      if (productsToInsert.length > 0) {
+        const { error } = await supabase.from('products').insert(productsToInsert);
+        if (error) {
+          console.error("Bulk import error:", error);
+          alert(`Import failed: ${error.message}`);
+        } else {
+          fetchProducts();
+          alert(`Imported ${productsToInsert.length} products`);
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
 
     if (sortBy === "name") result.sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === "newest") result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));

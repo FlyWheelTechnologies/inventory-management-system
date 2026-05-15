@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
@@ -131,6 +131,99 @@ export default function Dashboard() {
     );
   }
 
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Morning";
+    if (hour < 17) return "Afternoon";
+    return "Evening";
+  };
+
+  const { todayCashIn, todayRevenue } = useMemo(() => {
+    const todayDate = new Date().toDateString();
+    const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+    return {
+      todayCashIn: todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
+      todayRevenue: todaySales
+        .filter(s => s.payment_status !== 'DEPOSIT')
+        .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0)
+    };
+  }, [sales]);
+
+  const { stockValue, lowStockCount, depletedCount } = useMemo(() => {
+    return {
+      stockValue: products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * parseFloat(p.stock_quantity || 0)), 0),
+      lowStockCount: products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length,
+      depletedCount: products.filter(p => p.stock_quantity <= 0).length
+    };
+  }, [products]);
+
+  // Real Insights Calculations
+  const bestSeller = useMemo(() => {
+    return products.length > 0
+      ? [...products].sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))[0]?.name || 'No sales yet'
+      : 'No products';
+  }, [products]);
+
+  const { totalRevenue, totalCost, grossMargin } = useMemo(() => {
+    const totalRev = sales
+      .filter(s => s.payment_status !== 'DEPOSIT')
+      .reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
+    const totalCst = sales.reduce((sum, s) => sum + (parseFloat(s.total_amount) * 0.7), 0);
+
+    return {
+      totalRevenue: totalRev,
+      totalCost: totalCst,
+      grossMargin: totalRev > 0 ? ((totalRev - totalCst) / totalRev * 100).toFixed(1) : "0.0"
+    };
+  }, [sales]);
+
+  const userName = user?.full_name || user?.email?.split('@')[0];
+
+  const chartData = useMemo(() => {
+    if (timeframe === '7d' || timeframe === '30d') {
+      const days = timeframe === '7d' ? 7 : 30;
+      return Array.from({ length: days }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (days - 1 - i));
+        const dateStr = d.toDateString();
+        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
+                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
+                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
+        return {
+          name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+          Revenue: daySales,
+          Expenses: dayExpenses
+        };
+      });
+    }
+
+    if (timeframe === 'YoY') {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const thisYear = new Date().getFullYear();
+      const lastYear = thisYear - 1;
+      
+      return months.map((m, i) => {
+        const thisYearSales = sales.filter(s => {
+          const d = new Date(s.created_at);
+          return d.getFullYear() === thisYear && d.getMonth() === i;
+        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+        
+        const lastYearSales = sales.filter(s => {
+          const d = new Date(s.created_at);
+          return d.getFullYear() === lastYear && d.getMonth() === i;
+        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+        
+        return {
+          name: m,
+          'This Year': thisYearSales,
+          'Last Year': lastYearSales
+        };
+      });
+    }
+    return [];
+  }, [sales, expenses, timeframe]);
+
   return (
     <div className="dashboard-container" style={{ padding: 24 }}>
       {/* Header */}
@@ -139,13 +232,15 @@ export default function Dashboard() {
           <h2 className="section-title">Business Overview</h2>
           <p style={{ fontSize: '13px', color: '#6b7280' }}>Welcome back, <strong>{user?.email?.split('@')[0]}</strong></p>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button className="quick-action-btn" onClick={() => setShowDepositModal(true)}>
-            📥 Record Deposit
-          </button>
-          <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales")}>
-            + New Sale
-          </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {user?.role !== 'auditor' && (
+            <>
+              <button className="quick-action-btn" style={{ background: '#6b7280' }} onClick={() => navigate("/expenses", { state: { showForm: true } })}>Record Expense</button>
+              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => navigate("/deposits", { state: { showForm: true } })}>📥 Record Deposit</button>
+              <button className="quick-action-btn" style={{ background: '#4f46e5' }} onClick={() => navigate("/products", { state: { showForm: true } })}>+ Add Product</button>
+              <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales", { state: { showForm: true } })}>Record Sale</button>
+            </>
+          )}
         </div>
       </div>
 

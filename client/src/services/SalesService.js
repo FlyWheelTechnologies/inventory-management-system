@@ -200,26 +200,11 @@ export const SalesService = {
   },
 
   /**
-   * Helper to ensure customer exists or create new one
+   * Records multiple sale transactions in a single batch call via Supabase RPC
    */
-  async getOrCreateCustomer(customerName, customerPhone) {
-    let { data: existingCust } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('phone', customerPhone)
-      .single();
-
-    if (existingCust) return existingCust.id;
-
-    const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
-      name: customerName,
-      phone: customerPhone,
-      email: '',
-      is_contractor: false,
-      created_at: new Date().toISOString()
-    }]).select().single();
-
-    if (custErr) throw custErr;
-    return newCust.id;
+  async recordSaleTransactionsBatch(salesArray) {
+    const { data, error } = await supabase.rpc('record_sale_transactions_batch', { p_sales: salesArray });
+    if (error) throw error;
+    return data;
   }
 };

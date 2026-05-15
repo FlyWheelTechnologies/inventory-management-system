@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
+import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { supabase } from "../services/supabaseClient";
+import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -10,8 +12,7 @@ import RecordDepositModal from "../components/Deposits/RecordDepositModal";
 import { DepositsService } from "../services/DepositsService";
 
 export default function Deposits() {
-  const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
+  const location = useLocation();
   const [deposits, setDeposits] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,9 +23,13 @@ export default function Deposits() {
   const [selectedSale, setSelectedSale] = useState(null);
   const [fulfilling, setFulfilling] = useState(false);
 
-  // Partial/Pure Fulfillment Logic
-  const [showFulfillModal, setShowFulfillModal] = useState(false);
-  const [items, setItems] = useState([{ product_id: '', product_name: '', quantity: 1, unit_price: 0 }]);
+  useEffect(() => { 
+    fetchDeposits(); 
+    if (location.state?.showForm) {
+      setShowDepositModal(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Record Deposit Logic
   const [showDepositModal, setShowDepositModal] = useState(false);
