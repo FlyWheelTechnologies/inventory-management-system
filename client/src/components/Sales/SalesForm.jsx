@@ -73,8 +73,21 @@ const SalesForm = ({
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
+    
+    let finalAmountPaid = parseFloat(amountPaid) || 0;
+    let finalNotes = notes;
+    
+    if (!isDeposit && finalAmountPaid > grandTotal) {
+      const change = finalAmountPaid - grandTotal;
+      finalAmountPaid = grandTotal;
+      finalNotes = `${finalNotes ? finalNotes + ' | ' : ''}Change given: GHS ${change.toFixed(2)}`;
+    }
+    
     onSave({
-      customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive, useCredit, total, grandTotal, balance
+      customerId, customerName, customerPhone, items, 
+      amountPaid: finalAmountPaid.toString(), 
+      paymentMethod, notes: finalNotes, isDeposit, taxPercentage, taxInclusive, useCredit, total, grandTotal, 
+      balance: isDeposit ? balance : Math.max(0, balance)
     });
   };
 
@@ -324,8 +337,8 @@ const SalesForm = ({
               <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {formatCurrency(total)}</p>
             </div>
             <div>
-              <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
-              <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {formatCurrency(balance)}</p>
+              <label style={lbl}>{isDeposit ? 'Balance on Delivery' : (balance < 0 ? 'Change' : 'Balance Due')}</label>
+              <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {formatCurrency(Math.abs(balance))}</p>
             </div>
           </div>
           <button type="button" onClick={handleSubmit} className="quick-action-btn" style={{ width:'280px', height:'50px', fontSize:16, background: isDeposit ? '#10b981' : undefined }}>
