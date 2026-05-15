@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
+import UserForm from "../components/Admin/UserForm";
+import UserTable from "../components/Admin/UserTable";
+import StatCard from "../components/StatCard";
+import { AdminService } from "../services/AdminService";
 
 export default function AdminSettings() {
   const { user: currentUser } = useAuth();
@@ -12,7 +15,6 @@ export default function AdminSettings() {
 
   const [editUserId, setEditUserId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (currentUser?.role === 'admin') {
@@ -21,28 +23,22 @@ export default function AdminSettings() {
   }, [currentUser]);
 
   const fetchUsers = async () => {
-    const { data, error: fetchError } = await supabase.from('profiles').select('*');
-    if (fetchError) {
-      console.error("Error fetching users:", fetchError);
-      setError("Permission denied or connection issue: " + fetchError.message);
-    } else if (data) {
+    try {
+      const data = await AdminService.fetchUsers();
       setUsers(data);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setError("Permission denied or connection issue: " + err.message);
     }
   };
 
-  const deleteUser = async (userId) => {
+  const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
-    
-    // Note: To fully delete a user from auth.users requires the Supabase Admin API.
-    // Here we delete from the profiles table, which might not be enough to remove auth, 
-    // but works for demonstration if auth.users doesn't CASCADE. 
-    // Ideally this is handled via an edge function.
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
-
-    if (!error) {
+    try {
+      await AdminService.deleteUser(userId, currentUser.email);
       fetchUsers();
-    } else {
-      setError(error.message);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -52,45 +48,15 @@ export default function AdminSettings() {
     setSaving(true);
     setError('');
 
-    let submitError;
-
     try {
-      if (editUserId) {
-        // Update existing profile
-        const { error: updateError } = await supabase.from('profiles').update({
-          full_name: newUser.full_name,
-          role: newUser.role
-        }).eq('id', editUserId);
-        submitError = updateError;
-      } else {
-        // Create new user via Edge Function (Prevents Admin logout)
-        const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
-          body: {
-            email: newUser.email,
-            password: newUser.password,
-            role: newUser.role,
-            full_name: newUser.full_name
-          }
-        });
-        
-        if (functionError) {
-          submitError = functionError;
-        } else if (data?.error) {
-          submitError = { message: data.error };
-        }
-      }
-
-      if (!submitError) {
-        setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
-        setShowAddUser(false);
-        setEditUserId(null);
-        fetchUsers();
-      } else {
-        setError(submitError.message);
-      }
+      await AdminService.saveUser(newUser, editUserId, currentUser.email);
+      setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
+      setShowAddUser(false);
+      setEditUserId(null);
+      fetchUsers();
     } catch (err) {
       console.error("User submit error:", err);
-      setError("Unexpected error: " + err.message);
+      setError(err.message || "An unexpected error occurred");
     } finally {
       setSaving(false);
     }
@@ -113,9 +79,9 @@ export default function AdminSettings() {
   }
 
   const ROLE_INFO = {
-    admin: { color:'#2563eb', bg:'#dbeafe', desc:'Full access — CRUD, user management, reports, delete records' },
-    storekeeper: { color:'#059669', bg:'#d1fae5', desc:'Add stock, record sales, view dashboard. No deletes or financial reports.' },
-    auditor: { color:'#7c3aed', bg:'#ede9fe', desc:'Read-only access. Can view all records and export reports.' },
+    admin: { color:'#2563eb', desc:'Full access — CRUD, user management, reports, delete records' },
+    storekeeper: { color:'#059669', desc:'Add stock, record sales, view dashboard. No deletes or financial reports.' },
+    auditor: { color:'#7c3aed', desc:'Read-only access. Can view all records and export reports.' },
   };
 
   return (
@@ -139,101 +105,32 @@ export default function AdminSettings() {
         </div>
       )}
 
-      {showAddUser && (
-        <div className="table-card" style={{ marginBottom: 24 }}>
-          <div className="table-card__header">
-            <h3 className="table-card__title">{editUserId ? 'Update Staff Account' : 'Create New Staff Account'}</h3>
-          </div>
-          <form onSubmit={handleUserSubmit} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <div>
-              <label style={lbl}>Full Name</label>
-              <input style={inp} type="text" value={newUser.full_name} onChange={e => setNewUser({...newUser, full_name: e.target.value})} required />
-            </div>
-            <div>
-              <label style={lbl}>Email Address</label>
-              <input style={inp} type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} required />
-            </div>
-            <div>
-              <label style={lbl}>{editUserId ? 'New Password (leave blank to keep current)' : 'Temporary Password'}</label>
-              <div style={{ position:'relative' }}>
-                <input 
-                  style={inp} 
-                  type={showPassword ? "text" : "password"} 
-                  value={newUser.password} 
-                  onChange={e => setNewUser({...newUser, password: e.target.value})} 
-                  required={!editUserId} 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position:'absolute', right:8, top:8, background:'none', border:'none', fontSize:12, cursor:'pointer', color:'#6b7280' }}
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label style={lbl}>Role</label>
-              <select style={inp} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                <option value="storekeeper">Storekeeper</option>
-                <option value="auditor">Auditor</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }} disabled={saving}>
-              {saving ? 'Creating User...' : (editUserId ? 'Save Changes' : 'Create User')}
-            </button>
-          </form>
-        </div>
-      )}
+      <UserForm
+        editingId={editUserId}
+        newUser={newUser}
+        setNewUser={setNewUser}
+        onSave={handleUserSubmit}
+        saving={saving}
+      />
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16, marginBottom:30 }}>
         {Object.entries(ROLE_INFO).map(([role, info]) => (
-          <div key={role} className="stat-card" style={{ borderTop:`3px solid ${info.color}` }}>
-            <span style={{ fontWeight:700, fontSize:15, textTransform:'capitalize', color:info.color }}>{role}</span>
-            <p style={{ fontSize:12, color:'#6b7280', marginTop:6 }}>{info.desc}</p>
-          </div>
+          <StatCard
+            key={role}
+            label={role.charAt(0).toUpperCase() + role.slice(1)}
+            value=""
+            style={{ borderTop:`3px solid ${info.color}` }}
+            children={<p style={{ fontSize:12, color:'#6b7280', marginTop:6 }}>{info.desc}</p>}
+          />
         ))}
       </div>
 
-      <div className="table-card">
-        <div className="table-card__header"><h3 className="table-card__title">System Users</h3></div>
-        <div className="table-wrapper">
-          <table className="stock-table">
-            <thead><tr><th>Email</th><th>Full Name</th><th>Current Role</th><th>Actions</th></tr></thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id}>
-                  <td style={{fontWeight:600}}>{u.email}</td>
-                  <td>{u.full_name || '—'}</td>
-                  <td>
-                    <span style={{ background:ROLE_INFO[u.role]?.bg || '#f3f4f6', color:ROLE_INFO[u.role]?.color || '#374151', padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600 }}>{u.role}</span>
-                  </td>
-                  <td style={{ display:'flex', gap:10 }}>
-                    <button 
-                      onClick={() => startEdit(u)} 
-                      style={{ background:'none', border:'none', cursor:'pointer', color:'#2563eb', fontWeight:600, fontSize:13 }}
-                    >
-                      Edit
-                    </button>
-                    {u.id !== currentUser?.id && (
-                      <button 
-                        onClick={() => deleteUser(u.id)} 
-                        style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', fontWeight:600, fontSize:13 }}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <UserTable
+        users={users}
+        currentUser={currentUser}
+        onEdit={startEdit}
+        onDelete={handleDeleteUser}
+      />
     </div>
   );
 }
-
-const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13 };

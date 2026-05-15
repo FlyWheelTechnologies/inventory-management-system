@@ -1,51 +1,53 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 import { formatCurrency } from "../services/formatters";
-
-const CATEGORIES = ['Utilities', 'Transport', 'Salary', 'Maintenance', 'Supplies', 'Misc'];
+import ExpenseForm from "../components/Expenses/ExpenseForm";
+import ExpenseTable from "../components/Expenses/ExpenseTable";
+import { ExpensesService } from "../services/ExpensesService";
 
 export default function Expenses() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
-  const fetchExpenses = async () => {
-    const { data } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
-    if (data) setExpenses(data);
-    setTimeout(() => setLoading(false), 1000);
-  };
-
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ description:'', category:'Misc', amount:'' });
+  const [search, setSearch] = useState('');
+  const [itemsToShow, setItemsToShow] = useState(25);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
+      const data = await ExpensesService.fetchExpenses();
+      setExpenses(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      ...form,
-      recorded_by: user?.email || 'System',
-      created_at: new Date().toISOString()
-    };
-    await supabase.from('expenses').insert([payload]);
-    setForm({ description:'', category:'Misc', amount:'' });
-    setShowForm(false);
-    fetchExpenses();
+    try {
+      await ExpensesService.saveExpense(form, user?.email);
+      setForm({ description:'', category:'Misc', amount:'' });
+      setShowForm(false);
+      fetchData();
+    } catch (err) {
+      console.error("Failed to save expense:", err);
+    }
   };
-
-  const [search, setSearch] = useState('');
-  const [itemsToShow, setItemsToShow] = useState(25);
 
   const filtered = expenses
     .filter(e => e.description.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const paginated = filtered.slice(0, itemsToShow);
-
   const totalExpenses = expenses.reduce((a, e) => a + parseFloat(e.amount), 0);
 
   if (loading) {
@@ -84,65 +86,20 @@ export default function Expenses() {
         </div>
       </div>
 
-      {showForm && (
-        <div className="table-card" style={{ marginBottom:24 }}>
-          <form onSubmit={handleSubmit} style={{ padding:20, display:'grid', gridTemplateColumns:'2fr 1fr 1fr auto', gap:14, alignItems:'end' }}>
-            <div><label style={lbl}>Description</label><input style={inp} value={form.description} onChange={e => setForm(f=>({...f, description:e.target.value}))} required /></div>
-            <div><label style={lbl}>Category</label>
-              <select style={inp} value={form.category} onChange={e => setForm(f=>({...f, category:e.target.value}))}>
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div><label style={lbl}>Amount (GHS)</label><input style={inp} type="number" step="0.01" value={form.amount} onChange={e => setForm(f=>({...f, amount:e.target.value}))} required /></div>
-            <button type="submit" className="quick-action-btn" style={{ height:38 }}>Save</button>
-          </form>
-        </div>
-      )}
+      <ExpenseForm
+        show={showForm}
+        form={form}
+        setForm={setForm}
+        onSave={handleSubmit}
+      />
 
-      <div className="table-card">
-        <div className="table-card__header">
-          <h3 className="table-card__title">Expense Ledger</h3>
-          <input 
-            type="search" 
-            className="table-search" 
-            placeholder="Search description..." 
-            value={search} 
-            onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} 
-          />
-        </div>
-        <div className="table-wrapper">
-          <table className="stock-table">
-            <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>By</th></tr></thead>
-            <tbody>
-              {paginated.length === 0 ? (
-                <tr><td colSpan="5" style={{textAlign:'center', padding:24}}>No expenses found.</td></tr>
-              ) : paginated.map(e => (
-                <tr key={e.id}>
-                  <td style={{fontSize:12, color:'#6b7280'}}>{new Date(e.created_at).toLocaleDateString()}</td>
-                  <td style={{fontWeight:500}}>{e.description}</td>
-                  <td><span style={{background:'#f3f4f6', padding:'2px 8px', borderRadius:4, fontSize:12}}>{e.category}</span></td>
-                  <td style={{fontWeight:600}}>GHS {formatCurrency(e.amount)}</td>
-                  <td>{e.recorded_by}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {filtered.length > itemsToShow && (
-          <div style={{ padding: 20, textAlign: 'center', borderTop: '1px solid #f3f4f6' }}>
-            <button 
-              onClick={() => setItemsToShow(prev => prev + 25)}
-              style={{ width: '100%', padding: '12px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, color: '#4b5563', fontWeight: 600, cursor: 'pointer' }}
-            >
-              See More Expenses ↓
-            </button>
-          </div>
-        )}
-      </div>
+      <ExpenseTable
+        expenses={paginated}
+        search={search}
+        setSearch={setSearch}
+        itemsToShow={itemsToShow}
+        setItemsToShow={setItemsToShow}
+      />
     </div>
   );
 }
-
-const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13 };

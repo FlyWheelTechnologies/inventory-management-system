@@ -1,187 +1,99 @@
 import React, { useState, useEffect } from "react";
 import { formatCurrency, formatPhone } from "../../services/formatters";
-import { supabase } from "../../services/supabaseClient";
 
-const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const secH = { fontSize:13, fontWeight:800, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'1px', marginBottom:16 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13, outline: 'none' };
-
-const SalesForm = ({
-  products,
-  customers,
-  onSave,
-  onCancel,
-  initialData = {},
-  saving = false
-}) => {
-  const [customerId, setCustomerId] = useState(initialData.customerId || '');
-  const [customerName, setCustomerName] = useState(initialData.customerName || 'Walk-in Customer');
-  const [customerSearch, setCustomerSearch] = useState(initialData.customerId ? initialData.customerName : '');
-  const [customerPhone, setCustomerPhone] = useState(initialData.customerPhone || '+233');
-  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
-  const [items, setItems] = useState(initialData.items || [{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
-  const [amountPaid, setAmountPaid] = useState(initialData.amountPaid || '');
-  const [paymentMethod, setPaymentMethod] = useState(initialData.paymentMethod || 'Cash');
-  const [notes, setNotes] = useState(initialData.notes || '');
+const SalesForm = ({ products, customers, initialData, onSave, onCancel, saving }) => {
+  const [customerName, setCustomerName] = useState(initialData.customerName || "");
+  const [customerPhone, setCustomerPhone] = useState(initialData.customerPhone || "");
+  const [items, setItems] = useState(initialData.items || [{ product_id: '', product_name: '', quantity: 1, unit_price: 0, showDropdown: false, searchQuery: '' }]);
+  const [paymentMethod, setPaymentMethod] = useState(initialData.paymentMethod || "Cash");
+  const [amountPaid, setAmountPaid] = useState(initialData.amountPaid || "");
   const [isDeposit, setIsDeposit] = useState(initialData.isDeposit || false);
-  const [taxPercentage, setTaxPercentage] = useState(initialData.taxPercentage || 20);
+  const [taxPercentage, setTaxPercentage] = useState(initialData.taxPercentage || 0);
   const [taxInclusive, setTaxInclusive] = useState(initialData.taxInclusive !== undefined ? initialData.taxInclusive : true);
-  const [customerCredit, setCustomerCredit] = useState(0);
-  const [useCredit, setUseCredit] = useState(0);
+  const [useCredit, setUseCredit] = useState(initialData.useCredit || 0);
 
-  // --- Draft Persistence ---
+  // Auto-save draft
   useEffect(() => {
-    const draft = { customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive };
+    const draft = { customerName, customerPhone, items, paymentMethod, amountPaid, isDeposit, taxPercentage, taxInclusive, useCredit };
     localStorage.setItem("sales_draft", JSON.stringify(draft));
-  }, [customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive]);
+  }, [customerName, customerPhone, items, paymentMethod, amountPaid, isDeposit, taxPercentage, taxInclusive, useCredit]);
 
-  const filteredCustomers = customerSearch.length > 0
-    ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
-    : customers;
+  const total = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
-  const handleCustomerSelect = async (c) => {
-    setCustomerId(c.id);
-    setCustomerName(c.name);
-    setCustomerSearch(c.name);
-    setCustomerPhone(c.phone || '+233');
-    setShowCustomerSuggestions(false);
-
-    // Fetch customer credit balance
-    const { data } = await supabase.from('deposits').select('total_balance').eq('customer_id', c.id).single();
-    if (data && data.total_balance < 0) {
-      setCustomerCredit(Math.abs(data.total_balance));
-    } else {
-      setCustomerCredit(0);
-    }
-  };
-
-  const handleCustomerInputChange = (e) => {
-    const val = e.target.value;
-    setCustomerSearch(val);
-    setCustomerName(val || 'Walk-in Customer');
-    setCustomerId('');
-    setCustomerPhone('+233');
-    setShowCustomerSuggestions(true);
-  };
-
-  const total = items.reduce((a, i) => a + (i.quantity * i.unit_price), 0);
   const taxAmount = taxInclusive
     ? total - (total / (1 + (taxPercentage / 100)))
     : total * (taxPercentage / 100);
-  const grandTotal = taxInclusive ? total : total + taxAmount;
-  const balance = grandTotal - (parseFloat(amountPaid) || 0) - (parseFloat(useCredit) || 0);
 
-  const handleSubmit = (e) => {
-    if (e) e.preventDefault();
-    onSave({
-      customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive, useCredit, total, grandTotal, balance
-    });
+  const grandTotal = taxInclusive ? total : total + taxAmount;
+  const balance = Math.max(0, grandTotal - (parseFloat(amountPaid) || 0) - (parseFloat(useCredit) || 0));
+
+  const customerCredit = customers.find(c => c.name === customerName)?.balance || 0;
+
+  const handleSubmit = () => {
+    if (!customerName || items.filter(i => i.product_id).length === 0) {
+      alert("Please enter customer name and at least one product.");
+      return;
+    }
+    onSave({ customerName, customerPhone, items, total, taxAmount, grandTotal, amountPaid, paymentMethod, isDeposit, balance, taxPercentage, taxInclusive, useCredit });
   };
 
   return (
-    <div style={{ padding:0 }}>
-      {/* SECTION 1: CUSTOMER & NOTES */}
+    <div className="table-card animate-slide-up" style={{ marginBottom: 30, border: '2px solid var(--brand-primary)' }}>
+      <div className="table-card__header" style={{ background: 'var(--brand-bg-light)' }}>
+        <h3 className="table-card__title">✨ New Sale Transaction</h3>
+        <button onClick={onCancel} className="close-btn">✕</button>
+      </div>
+
+      {/* SECTION 1: CUSTOMER */}
       <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
-        <h4 style={secH}>01. Customer Information</h4>
-        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
-          <div style={{ position: 'relative' }}>
-            <label style={lbl}>Select Customer *</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <input
-                  style={{ ...inp, border: customerId ? '1.5px solid #3b82f6' : '1px solid #ddd' }}
-                  value={customerSearch}
-                  onChange={handleCustomerInputChange}
-                  onFocus={() => setShowCustomerSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
-                  placeholder="Search existing or type new name..."
-                  onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                />
-                {showCustomerSuggestions && (
-                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
-                    <div
-                      onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); }}
-                      style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
-                    >
-                      👤 Generic Walk-in Customer (Default)
-                    </div>
-                    {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
-                      <div key={c.id} onMouseDown={() => handleCustomerSelect(c)}
-                        style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
-                        onMouseEnter={e => e.target.style.background='#f3f4f6'}
-                        onMouseLeave={e => e.target.style.background='#fff'}
-                      >
-                        <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `— ${c.phone}` : ''}
-                      </div>
-                    )) : (
-                      <div style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: '#9ca3af' }}>
-                        No matching customers
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); }}
-                style={{ background:'#f3f4f6', border:'none', borderRadius:8, padding:'0 12px', cursor:'pointer', color:'#6b7280', fontSize:12, fontWeight:600 }}
-              >
-                Reset
-              </button>
-            </div>
+        <h4 className="sec-header">01. Customer Details</h4>
+        <div className="form-grid">
+          <div>
+            <label className="form-label">Customer Name *</label>
+            <input className="form-input" list="customer-list" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Search or enter name..." />
+            <datalist id="customer-list">
+              {customers.map(c => <option key={c.id} value={c.name}>{c.phone}</option>)}
+            </datalist>
           </div>
           <div>
-            <label style={lbl}>Customer Phone</label>
-            <input
-              style={inp}
-              value={customerPhone}
-              onChange={e => setCustomerPhone(formatPhone(e.target.value))}
-              placeholder="+233XXXXXXXXX"
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            />
-          </div>
-          <div>
-            <label style={lbl}>Internal Sale Notes</label>
-            <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / special packaging..." onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
-            <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
-              Active: <span style={{ color: '#111827' }}>{customerName}</span> {customerId && ' (Linked Account)'}
-            </div>
+            <label className="form-label">Phone Number</label>
+            <input className="form-input" value={customerPhone} onChange={e => setCustomerPhone(formatPhone(e.target.value))} placeholder="+233XXXXXXXXX" />
           </div>
         </div>
       </div>
 
       {/* SECTION 2: ITEMS */}
       <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
-        <h4 style={secH}>02. Items Selection</h4>
-        <table className="stock-table" style={{ marginBottom:16 }}>
-          <thead><tr><th>Product</th><th>Qty</th><th>Unit Price (GHS)</th><th>Subtotal</th><th></th></tr></thead>
+        <h4 className="sec-header">02. Cart Items</h4>
+        <table className="stock-table" style={{ marginBottom: 15 }}>
+          <thead>
+            <tr><th style={{ width: '40%' }}>Product Selection</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th><th></th></tr>
+          </thead>
           <tbody>
             {items.map((item, idx) => (
               <tr key={idx}>
                 <td style={{ position: 'relative' }}>
                   <div style={{ position: 'relative' }}>
                     <input
-                      style={{...inp, minWidth:250}}
-                      placeholder="Search code or name..."
-                      value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
-                      onChange={(e) => {
-                        const newItems = [...items];
-                        newItems[idx].searchQuery = e.target.value;
-                        newItems[idx].product_id = ''; // Clear selected if typing
-                        setItems(newItems);
-                      }}
+                      className="form-input"
+                      placeholder="Type product name or code..."
+                      value={item.searchQuery || item.product_name}
                       onFocus={() => {
                         const newItems = [...items];
                         newItems[idx].showDropdown = true;
                         setItems(newItems);
                       }}
+                      onChange={(e) => {
+                        const newItems = [...items];
+                        newItems[idx].searchQuery = e.target.value;
+                        newItems[idx].showDropdown = true;
+                        setItems(newItems);
+                      }}
                     />
                     {item.showDropdown && (
-                      <div className="search-dropdown" style={{
+                      <div className="table-card" style={{
                         position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                        background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
-                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
-                        maxHeight: 250, overflowY: 'auto'
+                        marginTop: 4, maxHeight: 250, overflowY: 'auto'
                       }}>
                         {products.filter(p =>
                           !item.searchQuery ||
@@ -199,8 +111,7 @@ const SalesForm = ({
                           ).map(p => (
                             <div
                               key={p.id}
-                              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
-                              className="search-item"
+                              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6' }}
                               onClick={() => {
                                 const newItems = [...items];
                                 newItems[idx].product_id = p.id;
@@ -227,63 +138,63 @@ const SalesForm = ({
                     setItems(newItems);
                   }} />}
                 </td>
-                <td><input style={{...inp, width:80}} type="number" min="1" value={item.quantity} onChange={e => {
+                <td><input className="form-input" style={{ width: 80 }} type="number" min="1" value={item.quantity} onChange={e => {
                   const newItems = [...items];
-                  newItems[idx].quantity = parseFloat(e.target.value)||0;
+                  newItems[idx].quantity = parseFloat(e.target.value) || 0;
                   setItems(newItems);
                 }} /></td>
-                <td><input style={{...inp, width:100}} type="number" step="0.01" value={item.unit_price} onChange={e => {
+                <td><input className="form-input" style={{ width: 100 }} type="number" step="0.01" value={item.unit_price} onChange={e => {
                   const newItems = [...items];
-                  newItems[idx].unit_price = parseFloat(e.target.value)||0;
+                  newItems[idx].unit_price = parseFloat(e.target.value) || 0;
                   setItems(newItems);
                 }} /></td>
-                <td style={{fontWeight:600}}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
-                <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{background:'#f3f4f6', color:'#ef4444', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
+                <td style={{ fontWeight: 600 }}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
+                <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ background: '#f3f4f6', color: '#ef4444', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>✕</button></td>
               </tr>
             ))}
           </tbody>
         </table>
-        <button type="button" onClick={() => setItems([...items, { product_id:'', product_name:'', quantity:1, unit_price:0 }])} style={{background:'#f3f4f6', border:'1px solid #ddd', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:13}}>+ Add Item Row</button>
+        <button type="button" onClick={() => setItems([...items, { product_id: '', product_name: '', quantity: 1, unit_price: 0 }])} style={{ background: '#f3f4f6', border: '1px solid #ddd', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>+ Add Item Row</button>
       </div>
 
       {/* SECTION 3: TOTALS & PAYMENT */}
       <div style={{ padding: 20 }}>
-        <h4 style={secH}>03. Totals & Payment</h4>
+        <h4 className="sec-header">03. Totals & Payment</h4>
 
-        <div style={{ display:'flex', alignItems:'center', gap:12, margin:'0 0 20px', padding:'12px 16px', background: isDeposit ? '#ecfdf5' : '#eff6ff', borderRadius:10, border: `1.5px solid ${isDeposit ? '#10b981' : '#3b82f6'}` }}>
-          <button type="button" onClick={() => setIsDeposit(!isDeposit)} style={{ background: isDeposit ? '#10b981' : '#3b82f6', color:'#fff', border:'none', borderRadius:20, padding:'6px 18px', fontWeight:700, cursor:'pointer', fontSize:13 }}>
+        <div className={`payment-toggle ${isDeposit ? 'payment-toggle--deposit' : 'payment-toggle--regular'}`}>
+          <button type="button" onClick={() => setIsDeposit(!isDeposit)} style={{ background: isDeposit ? '#10b981' : '#3b82f6', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
             {isDeposit ? '✓ Marked as Deposit' : '📥 Mark as Deposit'}
           </button>
-          <span style={{ fontSize:12, color: isDeposit ? '#065f46' : '#1e40af' }}>{isDeposit ? 'Payment held as advance deposit. Items stay in stock reservation.' : 'Toggle this if customer is paying in advance.'}</span>
+          <span style={{ fontSize: 12, color: isDeposit ? '#065f46' : '#1e40af' }}>{isDeposit ? 'Payment held as advance deposit. Items stay in stock reservation.' : 'Toggle this if customer is paying in advance.'}</span>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr 1fr', gap:20, padding:20, background:'#f9fafb', borderRadius:12, border: '1px solid #e5e7eb' }}>
+        <div className="totals-grid">
           <div>
-            <label style={lbl}>Tax Options</label>
+            <label className="form-label">Tax Options</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <select style={{ ...inp, padding: '6px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
+              <select className="form-select" style={{ padding: '6px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
                 <option value="20">20% Unified (VAT+NHIL+GET)</option>
                 <option value="15">15% VAT Only</option>
                 <option value="12.5">12.5% Flat Rate</option>
                 <option value="0">0% Exempt</option>
               </select>
-              <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4, whiteSpace:'nowrap' }}>
+              <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
                 <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
               </label>
             </div>
-            <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {formatCurrency(taxAmount)}</div>
+            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>Tax: GHS {formatCurrency(taxAmount)}</div>
           </div>
           <div>
-            <label style={lbl}>Grand Total</label>
-            <p style={{fontSize:24, fontWeight:800, color: '#111827'}}>GHS {formatCurrency(grandTotal)}</p>
+            <label className="form-label">Grand Total</label>
+            <p style={{ fontSize: 24, fontWeight: 800, color: '#111827' }}>GHS {formatCurrency(grandTotal)}</p>
           </div>
           <div>
-            <label style={lbl}>{isDeposit ? 'Deposit Amt' : 'Paid Amt'} *</label>
-            <input style={{...inp, fontSize:16, fontWeight:700, border: '2px solid #3b82f6'}} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
+            <label className="form-label">{isDeposit ? 'Deposit Amt' : 'Paid Amt'} *</label>
+            <input className="form-input" style={{ fontSize: 16, fontWeight: 700, border: '2px solid #3b82f6' }} type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
           </div>
           <div>
-            <label style={lbl}>Pay Method</label>
-            <select style={{...inp, fontWeight:600}} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+            <label className="form-label">Pay Method</label>
+            <select className="form-select" style={{ fontWeight: 600 }} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="Cash">💵 Cash</option>
               <option value="Momo">📱 Momo</option>
               <option value="Bank">🏦 Bank</option>
@@ -292,7 +203,7 @@ const SalesForm = ({
         </div>
 
         {customerCredit > 0 && (
-          <div style={{ marginTop: 16, padding: 16, background: '#f0fdf4', borderRadius: 12, border: '1.5px dashed #22c55e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="credit-banner">
             <div>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎁 Available Customer Credit: GHS {formatCurrency(customerCredit)}</span>
               <p style={{ fontSize: 11, color: '#15803d', margin: '4px 0 0' }}>This customer has overpaid in the past. You can apply this to the current sale.</p>
@@ -302,7 +213,8 @@ const SalesForm = ({
               <input
                 type="number"
                 max={Math.min(customerCredit, grandTotal)}
-                style={{ ...inp, width: 100, border: '1.5px solid #22c55e' }}
+                className="form-input"
+                style={{ width: 100, border: '1.5px solid #22c55e' }}
                 value={useCredit}
                 onChange={e => setUseCredit(Math.min(parseFloat(e.target.value) || 0, customerCredit, grandTotal))}
               />
@@ -317,18 +229,18 @@ const SalesForm = ({
           </div>
         )}
 
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:20 }}>
-          <div style={{ display:'flex', gap: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 20 }}>
             <div>
-              <label style={lbl}>Subtotal</label>
-              <p style={{fontSize:15, fontWeight:600, color:'#6b7280'}}>GHS {formatCurrency(total)}</p>
+              <label className="form-label">Subtotal</label>
+              <p style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>GHS {formatCurrency(total)}</p>
             </div>
             <div>
-              <label style={lbl}>{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
-              <p style={{fontSize:15, fontWeight:700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669'}}>GHS {formatCurrency(balance)}</p>
+              <label className="form-label">{isDeposit ? 'Balance on Delivery' : 'Balance Due'}</label>
+              <p style={{ fontSize: 15, fontWeight: 700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669' }}>GHS {formatCurrency(balance)}</p>
             </div>
           </div>
-          <button type="button" onClick={handleSubmit} className="quick-action-btn" style={{ width:'280px', height:'50px', fontSize:16, background: isDeposit ? '#10b981' : undefined }}>
+          <button type="button" onClick={handleSubmit} className="quick-action-btn" style={{ width: '280px', height: '50px', fontSize: 16, background: isDeposit ? '#10b981' : undefined }}>
             {isDeposit ? '📥 Record Deposit' : 'Confirm & Complete Sale'}
           </button>
         </div>

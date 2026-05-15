@@ -5,6 +5,34 @@ import { formatCurrency } from "./formatters";
 
 export const SalesService = {
   /**
+   * Fetches sales data along with items and customers
+   */
+  async fetchSalesData() {
+    const { data: sales, error: salesErr } = await supabase
+      .from('sales')
+      .select('*, sale_items(*)')
+      .order('created_at', { ascending: false });
+
+    if (salesErr) throw salesErr;
+
+    const { data: products, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+      .order('name');
+
+    if (prodErr) throw prodErr;
+
+    const { data: customers, error: custErr } = await supabase
+      .from('customers')
+      .select('*')
+      .order('name');
+
+    if (custErr) throw custErr;
+
+    return { sales, products, customers };
+  },
+
+  /**
    * Generates and downloads a PDF receipt for a sale
    */
   async generateReceipt(sale) {
@@ -169,5 +197,29 @@ export const SalesService = {
     const { data, error } = await supabase.rpc('record_sale_transaction', params);
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Helper to ensure customer exists or create new one
+   */
+  async getOrCreateCustomer(customerName, customerPhone) {
+    let { data: existingCust } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('phone', customerPhone)
+      .single();
+
+    if (existingCust) return existingCust.id;
+
+    const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
+      name: customerName,
+      phone: customerPhone,
+      email: '',
+      is_contractor: false,
+      created_at: new Date().toISOString()
+    }]).select().single();
+
+    if (custErr) throw custErr;
+    return newCust.id;
   }
 };
