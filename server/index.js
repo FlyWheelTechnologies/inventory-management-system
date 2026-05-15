@@ -4,12 +4,19 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const crypto = require('crypto');
 const { sendReceiptEmail, sendLowStockAlert } = require('./utils/mailer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'florzy_angel_secret_key';
+
+// Sentinel: Fix hardcoded JWT secret
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('⚠️ WARNING: JWT_SECRET environment variable is not set. A random secret has been generated for this session. User sessions will be invalidated upon server restart.');
+}
 
 app.use(cors());
 app.use(express.json());
@@ -132,9 +139,14 @@ db.serialize(() => {
   const adminEmail = 'admin@florzyangel.com';
   db.get('SELECT id FROM users WHERE email = ?', [adminEmail], (err, row) => {
     if (!row) {
-      const hash = bcrypt.hashSync('admin123', 10);
+      // Sentinel: Fix hardcoded default admin password
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(8).toString('hex');
+      const hash = bcrypt.hashSync(defaultPassword, 10);
       db.run('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [adminEmail, hash, 'admin']);
-      console.log('Default admin created.');
+      console.log(`Default admin created. Email: ${adminEmail} | Password: ${defaultPassword}`);
+      if (!process.env.DEFAULT_ADMIN_PASSWORD) {
+        console.warn('⚠️ WARNING: A random password was generated for the default admin. Please log in and change it immediately, or set DEFAULT_ADMIN_PASSWORD in your .env file.');
+      }
     }
   });
 
