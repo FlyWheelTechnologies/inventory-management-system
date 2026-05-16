@@ -46,7 +46,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { user } = useAuth();
   const [openMenus, setOpenMenus] = useState(() => {
     const cached = localStorage.getItem("sidebar_open_menus");
-    return cached ? JSON.parse(cached) : { stock: true };
+    return cached ? JSON.parse(cached) : { sales: true, stock: true, accounting: true, admin: true };
   });
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,6 +68,20 @@ export default function Sidebar({ collapsed, onToggle }) {
       });
     }
   }, [location.pathname, displayCollapsed]);
+
+  // Click outside closes sidebar on mobile
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar && !sidebar.contains(event.target)) {
+        if (!sidebar.classList.contains('sidebar--collapsed') && window.innerWidth <= 768) {
+          onToggle();
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onToggle]);
 
   const toggleMenu = (id) => setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
   const isActive = (path) => {
@@ -99,14 +113,12 @@ export default function Sidebar({ collapsed, onToggle }) {
       className={`sidebar ${displayCollapsed ? "sidebar--collapsed" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => {
+        if (displayCollapsed && window.innerWidth <= 768) {
+          onToggle();
+        }
+      }}
     >
-      <button className="sidebar__collapse-btn" onClick={onToggle} title={collapsed ? "Lock Sidebar" : "Unlock Sidebar"}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-        {!displayCollapsed && <span>{collapsed ? "Lock Sidebar" : "Unlock Sidebar"}</span>}
-      </button>
 
       <div className="sidebar__logo">
         <div className="sidebar__logo-icon">
