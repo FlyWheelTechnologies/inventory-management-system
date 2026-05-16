@@ -388,19 +388,73 @@ export default function Deposits() {
                 {items.map((item, idx) => (
                   <tr key={idx}>
                     <td style={{ position: 'relative' }}>
-                      <select 
-                        style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }}
-                        value={item.product_id}
-                        onChange={(e) => {
-                          const p = products.find(p => p.id === e.target.value);
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          style={{ ...inp, width: '100%' }}
+                          placeholder="Search code or name..."
+                          value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
+                          onChange={(e) => {
+                            const newItems = [...items];
+                            newItems[idx].searchQuery = e.target.value;
+                            newItems[idx].product_id = ''; // Clear selected if typing
+                            setItems(newItems);
+                          }}
+                          onFocus={() => {
+                            const newItems = [...items];
+                            newItems[idx].showDropdown = true;
+                            setItems(newItems);
+                          }}
+                        />
+                        {item.showDropdown && (
+                          <div className="search-dropdown" style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                            background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
+                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
+                            maxHeight: 250, overflowY: 'auto'
+                          }}>
+                            {products.filter(p =>
+                              !item.searchQuery ||
+                              (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
+                              (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+                            ).length === 0 ? (
+                              <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
+                                ⚠️ Product not found
+                              </div>
+                            ) : (
+                              products.filter(p =>
+                                !item.searchQuery ||
+                                (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
+                                (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+                              ).map(p => (
+                                <div
+                                  key={p.id}
+                                  style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
+                                  className="search-item"
+                                  onClick={() => {
+                                    const newItems = [...items];
+                                    newItems[idx].product_id = p.id;
+                                    newItems[idx].product_name = p.name;
+                                    newItems[idx].unit_price = p.selling_price;
+                                    newItems[idx].showDropdown = false;
+                                    newItems[idx].searchQuery = p.name;
+                                    setItems(newItems);
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
+                                  <div style={{ fontSize: 11, color: '#6b7280' }}>
+                                    {p.item_code} • {p.stock_quantity} in stock
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                        {item.showDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => {
                           const newItems = [...items];
-                          newItems[idx] = { ...newItems[idx], product_id: p.id, product_name: p.name, unit_price: p.selling_price };
+                          newItems[idx].showDropdown = false;
                           setItems(newItems);
-                        }}
-                      >
-                        <option value="">Select Product...</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.stock_quantity} in stock)</option>)}
-                      </select>
+                        }} />}
+                      </div>
                     </td>
                     <td><input type="number" style={{ width: 60, padding: 6 }} value={item.quantity} onChange={e => {
                       const newItems = [...items];

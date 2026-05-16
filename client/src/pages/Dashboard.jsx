@@ -164,7 +164,7 @@ export default function Dashboard() {
   const todayRevenue = todaySales
     .filter(s => s.payment_status !== 'DEPOSIT')
     .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * parseFloat(p.stock_quantity || 0)), 0);
+  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
   const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
   const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
 

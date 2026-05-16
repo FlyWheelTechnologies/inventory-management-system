@@ -219,19 +219,25 @@ export default function Sales() {
       setToast({ 
         message: "Sale recorded successfully!", 
         type: "success",
-        action: () => SalesService.shareViaWhatsApp({
-          id: newSaleId,
-          customer_id: resolvedCustomerId,
-          customer_name: pendingSaleData.customerName,
-          total_amount: pendingSaleData.grandTotal,
-          amount_paid: (parseFloat(pendingSaleData.amountPaid) || 0) + (parseFloat(pendingSaleData.useCredit) || 0),
-          balance_due: pendingSaleData.balance,
-          created_at: new Date().toISOString()
-        }, {
-          customerPhone: pendingSaleData.customerPhone,
-          customerName: pendingSaleData.customerName,
-          customers
-        }),
+        action: async () => {
+          try {
+            await SalesService.shareViaWhatsApp({
+              id: newSaleId,
+              customer_id: resolvedCustomerId,
+              customer_name: pendingSaleData.customerName,
+              total_amount: pendingSaleData.grandTotal,
+              amount_paid: (parseFloat(pendingSaleData.amountPaid) || 0) + (parseFloat(pendingSaleData.useCredit) || 0),
+              balance_due: pendingSaleData.balance,
+              created_at: new Date().toISOString()
+            }, {
+              customerPhone: pendingSaleData.customerPhone,
+              customerName: pendingSaleData.customerName,
+              customers
+            });
+          } catch (err) {
+            setToast({ message: err.message, type: "error" });
+          }
+        },
         actionLabel: "Send WhatsApp Receipt"
       });
       setTimeout(() => setToast(null), 10000);
@@ -325,7 +331,13 @@ export default function Sales() {
         onExportCSV={handleExportCSV}
         onImportCSV={handleImportCSV}
         onGenerateReceipt={(s) => SalesService.generateReceipt(s)}
-        onShareViaWhatsApp={(s) => SalesService.shareViaWhatsApp(s, { customers })}
+        onShareViaWhatsApp={async (s) => {
+          try {
+            await SalesService.shareViaWhatsApp(s, { customers });
+          } catch (err) {
+            setToast({ message: err.message, type: "error" });
+          }
+        }}
       />
 
       {toast && (

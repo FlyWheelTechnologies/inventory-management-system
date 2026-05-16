@@ -273,14 +273,14 @@ export default function Products() {
               </div>
             )}
           </div>
-          <form onSubmit={handleSubmit} style={{ padding:0 }}>
+          <form onSubmit={handleSubmit} style={{ padding:0 }} autoComplete="off">
             {/* SECTION 1: BASIC INFO */}
             <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
               <h4 style={secH}>01. Basic Information</h4>
               <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:20 }}>
                 <div>
                   <label style={lbl}>Product Name *</label>
-                  <input style={inp} value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value}))} required list="existing-products" />
+                  <input style={inp} value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value.toUpperCase()}))} required list="existing-products" autoComplete="off" />
                   <datalist id="existing-products">
                     {products.map(p => <option key={p.id} value={p.name} />)}
                   </datalist>
@@ -300,15 +300,15 @@ export default function Products() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:20 }}>
                 <div>
                   <label style={lbl}>Cost Price (GHS) *</label>
-                  <input style={inp} type="number" step="0.01" value={form.cost_price} onChange={e => setForm(f=>({...f, cost_price:e.target.value}))} required />
+                  <input style={inp} type="number" step="0.01" value={form.cost_price} onChange={e => setForm(f=>({...f, cost_price:e.target.value}))} required autoComplete="off" />
                 </div>
                 <div>
                   <label style={lbl}>Selling Price (GHS) *</label>
-                  <input style={{...inp, fontWeight:700, color:'#059669', border:'1px solid #10b981'}} type="number" step="0.01" value={form.selling_price} onChange={e => setForm(f=>({...f, selling_price:e.target.value}))} required />
+                  <input style={{...inp, fontWeight:700, color:'#059669', border:'1px solid #10b981'}} type="number" step="0.01" value={form.selling_price} onChange={e => setForm(f=>({...f, selling_price:e.target.value}))} required autoComplete="off" />
                 </div>
                 <div>
                   <label style={lbl}>Unit of Measure (e.g. Bag, Pcs)</label>
-                  <input style={inp} value={form.selling_uom} onChange={e => setForm(f=>({...f, selling_uom:e.target.value}))} />
+                  <input style={inp} value={form.selling_uom} onChange={e => setForm(f=>({...f, selling_uom:e.target.value}))} autoComplete="off" />
                 </div>
               </div>
             </div>
@@ -319,11 +319,11 @@ export default function Products() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:20 }}>
                 <div>
                   <label style={lbl}>Current Stock Qty *</label>
-                  <input style={{...inp, fontWeight:700}} type="number" value={form.stock_quantity} onChange={e => setForm(f=>({...f, stock_quantity:e.target.value}))} required />
+                  <input style={{...inp, fontWeight:700}} type="number" value={form.stock_quantity} onChange={e => setForm(f=>({...f, stock_quantity:e.target.value}))} required autoComplete="off" />
                 </div>
                 <div>
                   <label style={lbl}>Low Stock Alert Level</label>
-                  <input style={{...inp, border: '1px solid #fca5a5'}} type="number" value={form.low_stock_threshold} onChange={e => setForm(f=>({...f, low_stock_threshold:e.target.value}))} required />
+                  <input style={{...inp, border: '1px solid #fca5a5'}} type="number" value={form.low_stock_threshold} onChange={e => setForm(f=>({...f, low_stock_threshold:e.target.value}))} required autoComplete="off" />
                 </div>
                 <div style={{ alignSelf: 'end' }}>
                   <button type="submit" className="quick-action-btn" style={{ width: '100%', height: 38 }} disabled={saving}>
