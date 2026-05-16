@@ -8,20 +8,6 @@ export default function Logs() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
 
-  useEffect(() => {
-    fetchLogs();
-    
-    // Real-time subscription for logs
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, (payload) => {
-        setLogs(prev => [payload.new, ...prev]);
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
   const fetchLogs = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -37,6 +23,20 @@ export default function Logs() {
     }
     setTimeout(() => setLoading(false), 1000);
   };
+
+  useEffect(() => {
+    fetchLogs();
+
+    // Real-time subscription for logs
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, (payload) => {
+        setLogs(prev => [payload.new, ...prev]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const getActionColor = (action) => {
     if (action.includes('SALE')) return '#22c55e';

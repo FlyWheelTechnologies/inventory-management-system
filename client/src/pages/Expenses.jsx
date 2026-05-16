@@ -24,14 +24,15 @@ export default function Expenses() {
     fetchExpenses();
   }, []);
 
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ description:'', category:'Misc', amount:'' });
+
   useEffect(() => {
     if (location.state?.showForm) {
       setShowForm(true);
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ description:'', category:'Misc', amount:'' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
