@@ -249,7 +249,9 @@ export default function Dashboard() {
               ) : (
                 'All stock levels are healthy. '
               )}
-              Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>GHS {todayRevenue.toFixed(1)}</span>.
+              {user?.role !== 'storekeeper' && (
+                <>Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>GHS {todayRevenue.toFixed(1)}</span>.</>
+              )}
             </p>
           </div>
         </div>

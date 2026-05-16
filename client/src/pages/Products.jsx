@@ -414,7 +414,7 @@ export default function Products() {
         <div className="table-wrapper">
           <table className="stock-table">
             <thead><tr>
-              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Sell Unit</th><th>Cost</th><th>Price</th><th>Profit</th><th>Status</th>{!isAuditor && <th>Actions</th>}
+              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Sell Unit</th>{user?.role !== 'storekeeper' && <th>Cost</th>}<th>Price</th>{user?.role !== 'storekeeper' && <th>Profit</th>}<th>Status</th>{!isAuditor && <th>Actions</th>}
             </tr></thead>
             <tbody>
               {paginated.length === 0 ? (
@@ -426,11 +426,13 @@ export default function Products() {
                   <td><span style={{background:'#f3f4f6', padding:'2px 8px', borderRadius:4, fontSize:12}}>{p.category}</span></td>
                   <td style={{fontWeight:600}}>{p.stock_quantity} {p.selling_uom}s</td>
                   <td>{p.selling_uom}</td>
-                  <td>GHS {formatCurrency(p.cost_price)}</td>
+                  {user?.role !== 'storekeeper' && <td>GHS {formatCurrency(p.cost_price)}</td>}
                   <td style={{fontWeight:600}}>GHS {formatCurrency(p.selling_price)}</td>
-                  <td style={{color: (p.selling_price - p.cost_price) / p.selling_price > 0.2 ? '#059669' : '#f59e0b', fontWeight: 600}}>
-                    GHS {formatCurrency(p.selling_price - p.cost_price)}
-                  </td>
+                  {user?.role !== 'storekeeper' && (
+                    <td style={{color: (p.selling_price - p.cost_price) / p.selling_price > 0.2 ? '#059669' : '#f59e0b', fontWeight: 600}}>
+                      GHS {formatCurrency(p.selling_price - p.cost_price)}
+                    </td>
+                  )}
                   <td>
                     {p.stock_quantity <= 0 ? (
                       <span className="status-pill" style={{ background: '#000', color: '#fff' }}>DEPLETED</span>

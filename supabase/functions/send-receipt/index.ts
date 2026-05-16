@@ -27,26 +27,36 @@ Deno.serve(async (req: Request) => {
       return new Response(`Ignoring ${type} event`, { status: 200 });
     }
 
-    // Only send receipt if a customer_id is linked
-    if (!record?.customer_id) {
-      return new Response('No customer linked — skipping receipt', { status: 200 });
-    }
-
     // Use service role to read customer data (bypasses RLS)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const { data: customer, error } = await supabase
-      .from('customers')
-      .select('name, email')
-      .eq('id', record.customer_id)
-      .single();
+    let customer = { name: 'Walk-in Customer', email: null };
+    if (record?.customer_id) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('name, email')
+        .eq('id', record.customer_id)
+        .single();
 
-    if (error) {
-      console.error('Error fetching customer:', error);
-      return new Response(`Error fetching customer: ${error.message}`, { status: 500 });
+      if (error) {
+        console.error('Error fetching customer:', error);
+        return new Response(`Error fetching customer: ${error.message}`, { status: 500 });
+      }
+      customer = data;
+    }
+
+    // Fetch sale items
+    const { data: saleItems, error: itemsError } = await supabase
+      .from('sale_items')
+      .select('*')
+      .eq('sale_id', record.id);
+
+    if (itemsError) {
+      console.error('Error fetching sale items:', itemsError);
+      return new Response(`Error fetching sale items: ${itemsError.message}`, { status: 500 });
     }
 
     const toEmail = customer?.email;
@@ -96,6 +106,31 @@ Deno.serve(async (req: Request) => {
               ? 'Thank you for your advance deposit. We\'ll fulfill your order shortly.'
               : 'Thank you for your purchase. Here is your receipt.'}
           </p>
+
+          <!-- Items Section -->
+          <div style="margin: 20px 0;">
+            <h3 style="font-size: 15px; color: #374151; margin-bottom: 10px;">Items Purchased</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                  <th style="text-align: left; padding: 8px 0; color: #6b7280;">Item</th>
+                  <th style="text-align: center; padding: 8px 0; color: #6b7280;">Qty</th>
+                  <th style="text-align: right; padding: 8px 0; color: #6b7280;">Price</th>
+                  <th style="text-align: right; padding: 8px 0; color: #6b7280;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${saleItems?.map(item => `
+                  <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 8px 0; color: #374151;">${item.product_name}</td>
+                    <td style="padding: 8px 0; color: #374151; text-align: center;">${item.quantity}</td>
+                    <td style="padding: 8px 0; color: #374151; text-align: right;">GHS ${Number(item.unit_price).toFixed(2)}</td>
+                    <td style="padding: 8px 0; color: #374151; text-align: right; font-weight: 600;">GHS ${Number(item.subtotal).toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
 
           <!-- Summary Box -->
           <div style="background: #f9fafb; border-radius: 10px; padding: 20px; margin: 20px 0; border: 1px solid #e5e7eb;">
