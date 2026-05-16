@@ -287,11 +287,19 @@ export default function Dashboard() {
           accent="primary"
           icon="⏳"
         />
-        <StatCard
-          label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
-          value={`GHS ${formatCurrency(stockValue)}`}
-          icon="📦"
-        />
+        {user?.role === 'storekeeper' ? (
+          <StatCard
+            label={<>Total Products <InfoTip text="Total number of unique products." /></>}
+            value={`${products.length} Products`}
+            icon="📦"
+          />
+        ) : (
+          <StatCard
+            label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
+            value={`GHS ${formatCurrency(stockValue)}`}
+            icon="📦"
+          />
+        )}
         <StatCard
           label={<>Low Stock <InfoTip text="Items that have fallen below their minimum threshold." /></>}
           value={`${lowStockCount} Items`}
