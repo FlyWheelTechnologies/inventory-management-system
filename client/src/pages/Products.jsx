@@ -199,9 +199,9 @@ export default function Products() {
       if (sortBy === 'price_low') return a.selling_price - b.selling_price;
       if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
       if (sortBy === 'margin') {
-        const marginA = a.selling_price > 0 ? (a.selling_price - a.cost_price) / a.selling_price : 0;
-        const marginB = b.selling_price > 0 ? (b.selling_price - b.cost_price) / b.selling_price : 0;
-        return marginB - marginA;
+        const profitA = a.selling_price - a.cost_price;
+        const profitB = b.selling_price - b.cost_price;
+        return profitB - profitA;
       }
       return a.name.localeCompare(b.name);
     });
@@ -385,7 +385,7 @@ export default function Products() {
               <select style={{ ...miniInp, paddingLeft: 30 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
                 <option value="name">Sort by Name</option>
                 <option value="newest">Newest Added</option>
-                <option value="margin">Best Margin</option>
+                <option value="margin">Best Profit</option>
                 <option value="stock_low">Low Stock First</option>
                 <option value="stock_high">High Stock First</option>
                 <option value="price_high">Price: High to Low</option>
@@ -414,7 +414,7 @@ export default function Products() {
         <div className="table-wrapper">
           <table className="stock-table">
             <thead><tr>
-              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Sell Unit</th><th>Cost</th><th>Price</th><th>Margin</th><th>Status</th>{!isAuditor && <th>Actions</th>}
+              <th>Code</th><th>Name</th><th>Category</th><th>Stock</th><th>Sell Unit</th><th>Cost</th><th>Price</th><th>Profit</th><th>Status</th>{!isAuditor && <th>Actions</th>}
             </tr></thead>
             <tbody>
               {paginated.length === 0 ? (
@@ -429,7 +429,7 @@ export default function Products() {
                   <td>GHS {formatCurrency(p.cost_price)}</td>
                   <td style={{fontWeight:600}}>GHS {formatCurrency(p.selling_price)}</td>
                   <td style={{color: (p.selling_price - p.cost_price) / p.selling_price > 0.2 ? '#059669' : '#f59e0b', fontWeight: 600}}>
-                    {p.selling_price > 0 ? (((p.selling_price - p.cost_price) / p.selling_price) * 100).toFixed(1) : 0}%
+                    GHS {formatCurrency(p.selling_price - p.cost_price)}
                   </td>
                   <td>
                     {p.stock_quantity <= 0 ? (
