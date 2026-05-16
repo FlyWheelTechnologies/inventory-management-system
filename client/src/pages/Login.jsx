@@ -64,7 +64,7 @@ export default function Login() {
     return (
       <div className="auth-container landing-bg">
         <div className="landing-card animate-fade-in">
-          <h1 className="landing-title">Flywheel</h1>
+          <h1 className="landing-title">Flywheel StockSystem</h1>
           <p className="landing-subtitle">Advanced Stock & Accounting Suite</p>
           <div className="landing-features">
             <div className="feature-pill">Multi-Tenant Ready</div>

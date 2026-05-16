@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'logo.png', 'avatars/*.png'],
       manifest: {
-        name: 'Flywheel Inventory Management',
-        short_name: 'Flywheel',
+        name: 'Flywheel StockSystem',
+        short_name: 'Flywheel StockSystem',
         description: 'Offline-first inventory management system',
         theme_color: '#f15a24',
         background_color: '#ffffff',

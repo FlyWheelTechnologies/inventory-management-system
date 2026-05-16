@@ -50,6 +50,8 @@ export default function Sidebar({ collapsed, onToggle }) {
   });
   const navigate = useNavigate();
   const location = useLocation();
+  const [isHovered, setIsHovered] = useState(false);
+  const displayCollapsed = collapsed && !isHovered;
 
   // Save menu state
   useEffect(() => {
@@ -58,14 +60,14 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   // Smart Auto-expansion: Open parent menu of current active route
   useEffect(() => {
-    if (!collapsed) {
+    if (!displayCollapsed) {
       NAV_ITEMS.forEach(item => {
         if (item.children?.some(c => location.pathname === c.path)) {
           setOpenMenus(prev => ({ ...prev, [item.id]: true }));
         }
       });
     }
-  }, [location.pathname, collapsed]);
+  }, [location.pathname, displayCollapsed]);
 
   const toggleMenu = (id) => setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
   const isActive = (path) => {
@@ -93,23 +95,27 @@ export default function Sidebar({ collapsed, onToggle }) {
   });
 
   return (
-    <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""}`}>
-      <button className="sidebar__collapse-btn" onClick={onToggle} title={collapsed ? "Expand" : "Collapse"}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: collapsed ? "rotate(180deg)" : "none", transition: "transform 0.3s" }}>
+    <aside 
+      className={`sidebar ${displayCollapsed ? "sidebar--collapsed" : ""}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <button className="sidebar__collapse-btn" onClick={onToggle} title={displayCollapsed ? "Expand" : "Collapse"}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: displayCollapsed ? "rotate(180deg)" : "none", transition: "transform 0.3s" }}>
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        {!collapsed && <span>Collapse</span>}
+        {!displayCollapsed && <span>Collapse</span>}
       </button>
 
       <div className="sidebar__logo">
         <div className="sidebar__logo-icon">
           <img src="/logo.png" alt="Flywheel Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
-        {!collapsed && (
+        {!displayCollapsed && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: -4 }}>Powered by</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-              <span className="sidebar__logo-text">Flywheel</span>
+              <span className="sidebar__logo-text">Flywheel StockSystem</span>
               <button 
                 onClick={() => window.location.reload()} 
                 style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#6b7280', transition: 'color 0.2s' }}
@@ -132,12 +138,12 @@ export default function Sidebar({ collapsed, onToggle }) {
             <div key={item.id} className="sidebar__group">
               <button
                 className={`sidebar__item sidebar__item--parent ${isParentActive(item) ? "sidebar__item--active" : ""}`}
-                onClick={() => !collapsed && toggleMenu(item.id)}
-                title={collapsed ? item.label : ""}
-                aria-expanded={!collapsed && openMenus[item.id]}
+                onClick={() => !displayCollapsed && toggleMenu(item.id)}
+                title={displayCollapsed ? item.label : ""}
+                aria-expanded={!displayCollapsed && openMenus[item.id]}
               >
                 <span className="sidebar__icon">{item.icon}</span>
-                {!collapsed && (
+                {!displayCollapsed && (
                   <>
                     <span className="sidebar__label">{item.label}</span>
                     <span className={`sidebar__chevron ${openMenus[item.id] ? "sidebar__chevron--open" : ""}`}>
@@ -147,8 +153,8 @@ export default function Sidebar({ collapsed, onToggle }) {
                 )}
               </button>
               <div 
-                className={`sidebar__children-wrapper ${!collapsed && openMenus[item.id] ? "sidebar__children-wrapper--open" : ""}`}
-                aria-hidden={collapsed || !openMenus[item.id]}
+                className={`sidebar__children-wrapper ${!displayCollapsed && openMenus[item.id] ? "sidebar__children-wrapper--open" : ""}`}
+                aria-hidden={displayCollapsed || !openMenus[item.id]}
               >
                 <div className="sidebar__children">
                   {item.children.map(child => (
@@ -160,9 +166,9 @@ export default function Sidebar({ collapsed, onToggle }) {
               </div>
             </div>
           ) : (
-            <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => navigate(item.path)} title={collapsed ? item.label : ""}>
+            <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => navigate(item.path)} title={displayCollapsed ? item.label : ""}>
               <span className="sidebar__icon">{item.icon}</span>
-              {!collapsed && <span className="sidebar__label">{item.label}</span>}
+              {!displayCollapsed && <span className="sidebar__label">{item.label}</span>}
             </button>
           )
         )}

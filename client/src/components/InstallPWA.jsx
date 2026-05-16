@@ -57,7 +57,7 @@ export default function InstallPWA() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px' }}>📱</span>
         <div>
-          <div style={{ fontWeight: '700', fontSize: '14px' }}>Install Flywheel for the best experience</div>
+          <div style={{ fontWeight: '700', fontSize: '14px' }}>Install Flywheel StockSystem for the best experience</div>
           <div style={{ fontSize: '12px', opacity: 0.9 }}>Install as an app to use it offline and access it faster from your home screen.</div>
         </div>
       </div>
