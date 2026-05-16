@@ -102,20 +102,26 @@ export default function Sales() {
             const prod = products.find(p => p.name.toLowerCase() === row.product?.toLowerCase()) || products[0];
             if (!prod) continue;
 
+            console.log("Importing row:", row);
+            const cust = customers.find(c => c.name.toLowerCase() === (row.customer || 'Walk-in Customer').toLowerCase());
             const payload = {
+              p_customer_id: cust ? cust.id : null,
               p_customer_name: row.customer || 'Walk-in Customer',
-              p_total_amount: parseFloat(row.price) * parseFloat(row.quantity) || 0,
-              p_amount_paid: parseFloat(row.paid) || 0,
+              p_total_amount: (parseFloat((row.price || '0').toString().replace(/[^\d.-]/g, '')) * parseFloat((row.quantity || '0').toString().replace(/[^\d.-]/g, ''))) || 0,
+              p_amount_paid: parseFloat((row.paid || '0').toString().replace(/[^\d.-]/g, '')) || 0,
               p_payment_method: row.method || 'Cash',
               p_payment_status: 'PAID',
               p_items: [{
                 product_id: prod.id,
                 product_name: prod.name,
-                quantity: parseFloat(row.quantity) || 1,
-                unit_price: parseFloat(row.price) || prod.selling_price,
-                subtotal: (parseFloat(row.quantity) || 1) * (parseFloat(row.price) || prod.selling_price)
+                quantity: parseFloat((row.quantity || '0').toString().replace(/[^\d.-]/g, '')) || 1,
+                unit_price: parseFloat((row.price || '0').toString().replace(/[^\d.-]/g, '')) || prod.selling_price,
+                subtotal: (parseFloat((row.quantity || '0').toString().replace(/[^\d.-]/g, '')) || 1) * (parseFloat((row.price || '0').toString().replace(/[^\d.-]/g, '')) || prod.selling_price)
               }],
-              p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import'
+              p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import',
+              p_tax_percentage: 0,
+              p_tax_inclusive: true,
+              p_credit_used: 0
             };
 
             await SalesService.recordSaleTransaction(payload);

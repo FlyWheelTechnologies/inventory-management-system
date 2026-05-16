@@ -1,0 +1,5 @@
+venv/
+inputs/*
+!inputs/PLACE_IMAGE_HERE.txt
+output.csv
+output.xlsx
