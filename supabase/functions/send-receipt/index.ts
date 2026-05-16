@@ -17,7 +17,15 @@ import { sendEmail } from '../_shared/resend.ts';
 Deno.serve(async (req: Request) => {
   try {
     // Supabase webhooks send a POST with the record payload
-    const { record } = await req.json();
+    const payload = await req.json();
+    const { record, type } = payload;
+
+    console.log(`Webhook triggered with event type: ${type} for sale ${record?.id}`);
+
+    // Only send receipt on INSERT
+    if (type && type !== 'INSERT') {
+      return new Response(`Ignoring ${type} event`, { status: 200 });
+    }
 
     // Only send receipt if a customer_id is linked
     if (!record?.customer_id) {
@@ -32,16 +40,35 @@ Deno.serve(async (req: Request) => {
 
     const { data: customer, error } = await supabase
       .from('customers')
-      .select('full_name, email')
+      .select('name, email')
       .eq('id', record.customer_id)
       .single();
 
-    if (error || !customer?.email) {
+    if (error) {
+      console.error('Error fetching customer:', error);
+      return new Response(`Error fetching customer: ${error.message}`, { status: 500 });
+    }
+
+    if (!customer?.email) {
       console.log('Customer has no email — skipping');
       return new Response('No email on file', { status: 200 });
     }
 
     const isDeposit = record.payment_status === 'DEPOSIT';
+    
+    let amountPaidDisplay = Number(record.amount_paid);
+    let balanceDueDisplay = Number(record.balance_due);
+    let changeDisplay = 0;
+
+    if (record.notes && record.notes.includes('Change given: GHS')) {
+      const match = record.notes.match(/Change given: GHS ([\d.]+)/);
+      if (match) {
+        changeDisplay = parseFloat(match[1]);
+        amountPaidDisplay = Number(record.total_amount) + changeDisplay;
+        balanceDueDisplay = 0;
+      }
+    }
+
     const statusColorMap: Record<string, string> = {
       PAID: '#059669',
       PARTIAL: '#f59e0b',
@@ -61,7 +88,7 @@ Deno.serve(async (req: Request) => {
 
         <!-- Body -->
         <div style="padding: 28px;">
-          <p style="font-size: 15px; color: #374151;">Hi <strong>${customer.full_name}</strong>,</p>
+          <p style="font-size: 15px; color: #374151;">Hi <strong>${customer.name}</strong>,</p>
           <p style="font-size: 14px; color: #6b7280;">
             ${isDeposit
               ? 'Thank you for your advance deposit. We\'ll fulfill your order shortly.'
@@ -90,13 +117,15 @@ Deno.serve(async (req: Request) => {
               </tr>
               ` : ''}
               <tr>
-                <td style="padding: 8px 0; color: #6b7280;">${isDeposit ? 'Deposit Paid' : 'Amount Paid'}</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #059669;">GHS ${Number(record.amount_paid).toFixed(2)}</td>
+                <td style="padding: 8px 0; color: #6b7280;">${isDeposit ? 'Deposit Paid' : (changeDisplay > 0 ? 'Amount Tendered' : 'Amount Paid')}</td>
+                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #059669;">GHS ${amountPaidDisplay.toFixed(2)}</td>
               </tr>
+              ${changeDisplay > 0 ? `
               <tr>
-                <td style="padding: 8px 0; color: #6b7280;">${isDeposit ? 'Balance on Delivery' : 'Balance Due'}</td>
-                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #ef4444;">GHS ${Number(record.balance_due).toFixed(2)}</td>
+                <td style="padding: 8px 0; color: #6b7280;">Change</td>
+                <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #059669;">GHS ${changeDisplay.toFixed(2)}</td>
               </tr>
+              ` : ''}
             </table>
           </div>
 

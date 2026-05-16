@@ -18,6 +18,7 @@ export default function Sales() {
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null); // { message, type, action, actionLabel }
   const [pendingSaleData, setPendingSaleData] = useState(null);
@@ -152,13 +153,20 @@ export default function Sales() {
         const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
           name: pendingSaleData.customerName,
           phone: pendingSaleData.customerPhone,
-          email: '',
+          email: pendingSaleData.customerEmail || '',
           is_contractor: false,
           created_at: new Date().toISOString()
         }]).select().single();
         
         if (custErr) throw custErr;
         resolvedCustomerId = newCust.id;
+      } else if (resolvedCustomerId && pendingSaleData.customerEmail) {
+        // Update existing customer email if provided
+        const { error: custErr } = await supabase.from('customers').update({
+          email: pendingSaleData.customerEmail
+        }).eq('id', resolvedCustomerId);
+        
+        if (custErr) console.error("Failed to update customer email:", custErr);
       }
 
       const validItems = [];
@@ -184,7 +192,7 @@ export default function Sales() {
       const newSaleId = await SalesService.recordSaleTransaction({
         p_customer_id: resolvedCustomerId,
         p_customer_name: pendingSaleData.customerName,
-        p_total_amount: pendingSaleData.total,
+        p_total_amount: pendingSaleData.grandTotal,
         p_amount_paid: parseFloat(pendingSaleData.amountPaid) || 0,
         p_payment_method: pendingSaleData.paymentMethod,
         p_payment_status: status,
@@ -224,7 +232,8 @@ export default function Sales() {
     } catch (err) {
       console.error(err);
       setShowConfirm(false);
-      setError(`Transaction Failed: ${err.message || 'Network issue'}. Your data is safe in this draft.`);
+      setError(err.message || 'Network issue');
+      setShowErrorModal(true);
     } finally {
       setSaving(false);
     }
@@ -283,14 +292,7 @@ export default function Sales() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ background: '#fef2f2', color: '#ef4444', padding: '14px', borderRadius: '10px', marginBottom: '20px', fontSize: '13px', border: '1px solid #fee2e2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>⚠️ {error}</span>
-          <button onClick={handleSubmit} disabled={saving} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
-            {saving ? 'Retrying...' : 'Retry Now'}
-          </button>
-        </div>
-      )}
+
 
       {showForm && (
         <SalesForm
@@ -373,6 +375,16 @@ export default function Sales() {
         onCancel={() => setShowConfirm(false)}
         type="primary"
         isLoading={saving}
+      />
+
+      <ConfirmationModal 
+        show={showErrorModal}
+        title="⚠️ Transaction Failed"
+        message={`Reason: ${error}. Your data is safe in this draft. Please adjust the quantities and try again.`}
+        confirmText="Okay, Let me fix it"
+        onConfirm={() => { setShowErrorModal(false); setError(''); }}
+        onCancel={() => { setShowErrorModal(false); setError(''); }}
+        type="danger"
       />
     </div>
   );

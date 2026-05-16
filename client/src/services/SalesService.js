@@ -77,10 +77,6 @@ export const SalesService = {
       doc.text(`Change:`, 35, finalY + offset + 4);
       doc.setTextColor(5, 150, 105); // Green
       doc.text(`GHS ${changeDisplay.toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
-    } else {
-      doc.text(`Balance Due:`, 35, finalY + offset + 4);
-      doc.setTextColor(sale.balance_due > 0 ? 249 : 5, sale.balance_due > 0 ? 115 : 150, sale.balance_due > 0 ? 22 : 105);
-      doc.text(`GHS ${balanceDueDisplay.toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
     }
 
     doc.setTextColor(156, 163, 175);

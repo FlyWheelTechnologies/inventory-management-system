@@ -57,7 +57,6 @@ const SalesTable = ({
               <th>Customer</th>
               <th>Total</th>
               <th>Paid</th>
-              <th>Bal</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -65,39 +64,53 @@ const SalesTable = ({
           <tbody>
             {paginatedSales.length === 0 ? (
               <tr><td colSpan="8" style={{textAlign:'center', padding:24}}>No transactions found.</td></tr>
-            ) : paginatedSales.map(s => (
-              <tr key={s.id}>
-                <td className="table-code">#INV-{String(s.invoice_no || s.id).slice(-6).padStart(3, '0')}</td>
-                <td>{new Date(s.created_at).toLocaleDateString()}</td>
-                <td>{s.customer_name}</td>
-                <td style={{fontWeight:600}}>GHS {formatCurrency(s.total_amount)}</td>
-                <td>GHS {formatCurrency(s.amount_paid)}</td>
-                <td style={{fontWeight:600, color: s.balance_due > 0 ? '#ef4444' : '#059669'}}>GHS {formatCurrency(s.balance_due)}</td>
-                <td>
-                  <span className={`status-pill status-pill--${s.payment_status === 'PAID' ? 'ok' : 'low'}`}>
-                    {s.payment_status}
-                  </span>
-                </td>
-                <td>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <button
-                      onClick={() => onGenerateReceipt(s)}
-                      style={{background:'none', border:'none', cursor:'pointer', fontSize:16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'}}
-                      title="Download PDF Receipt"
-                    >
-                      📄
-                    </button>
-                    <button
-                      onClick={() => onShareViaWhatsApp(s)}
-                      style={{background:'none', border:'none', cursor:'pointer', fontSize:16}}
-                      title="Send receipt on WhatsApp"
-                    >
-                      📱
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            ) : paginatedSales.map(s => {
+              let amountPaidDisplay = parseFloat(s.amount_paid);
+              let balanceDueDisplay = parseFloat(s.balance_due);
+              let changeDisplay = 0;
+
+              if (s.notes && s.notes.includes('Change given: GHS')) {
+                const match = s.notes.match(/Change given: GHS ([\d.]+)/);
+                if (match) {
+                  changeDisplay = parseFloat(match[1]);
+                  amountPaidDisplay = parseFloat(s.total_amount) + changeDisplay;
+                  balanceDueDisplay = 0;
+                }
+              }
+
+              return (
+                <tr key={s.id}>
+                  <td className="table-code">#INV-{String(s.invoice_no || s.id).slice(-6).padStart(3, '0')}</td>
+                  <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                  <td>{s.customer_name}</td>
+                  <td style={{fontWeight:600}}>GHS {formatCurrency(s.total_amount)}</td>
+                  <td>GHS {formatCurrency(amountPaidDisplay)}</td>
+                  <td>
+                    <span className={`status-pill status-pill--${s.payment_status === 'PAID' ? 'ok' : 'low'}`}>
+                      {s.payment_status}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <button
+                        onClick={() => onGenerateReceipt(s)}
+                        style={{background:'none', border:'none', cursor:'pointer', fontSize:16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'}}
+                        title="Download PDF Receipt"
+                      >
+                        📄
+                      </button>
+                      <button
+                        onClick={() => onShareViaWhatsApp(s)}
+                        style={{background:'none', border:'none', cursor:'pointer', fontSize:16}}
+                        title="Send receipt on WhatsApp"
+                      >
+                        📱
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

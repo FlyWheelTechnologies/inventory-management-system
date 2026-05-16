@@ -9,6 +9,7 @@ import JournalEntries from "./pages/JournalEntries";
 import Logs from "./pages/Logs";
 import Customers from "./pages/Customers";
 import AdminSettings from "./pages/AdminSettings";
+import SystemGuide from "./pages/SystemGuide";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 
@@ -26,6 +27,7 @@ function App() {
         <Route path="/reports/daily" element={<ProtectedRoute><Layout><JournalEntries /></Layout></ProtectedRoute>} />
         <Route path="/logs" element={<ProtectedRoute><Layout><Logs /></Layout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Layout><AdminSettings /></Layout></ProtectedRoute>} />
+        <Route path="/guide" element={<ProtectedRoute><Layout><SystemGuide /></Layout></ProtectedRoute>} />
         {/* Fallback for unmatched routes to prevent blank screens */}
         <Route path="*" element={<Login />} />
       </Routes>

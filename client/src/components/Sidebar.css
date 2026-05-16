@@ -200,6 +200,29 @@
   background: rgba(255,255,255,0.05);
 }
 
+/* Footer */
+.sidebar__footer {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar__footer-link {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.sidebar__footer-link:hover {
+  color: rgba(255,255,255,0.7);
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .sidebar {

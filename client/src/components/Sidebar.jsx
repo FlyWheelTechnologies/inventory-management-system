@@ -100,11 +100,12 @@ export default function Sidebar({ collapsed, onToggle }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <button className="sidebar__collapse-btn" onClick={onToggle} title={displayCollapsed ? "Expand" : "Collapse"}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: displayCollapsed ? "rotate(180deg)" : "none", transition: "transform 0.3s" }}>
-          <polyline points="15 18 9 12 15 6" />
+      <button className="sidebar__collapse-btn" onClick={onToggle} title={collapsed ? "Lock Sidebar" : "Unlock Sidebar"}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
-        {!displayCollapsed && <span>Collapse</span>}
+        {!displayCollapsed && <span>{collapsed ? "Lock Sidebar" : "Unlock Sidebar"}</span>}
       </button>
 
       <div className="sidebar__logo">
@@ -115,7 +116,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: -4 }}>Powered by</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-              <span className="sidebar__logo-text">Flywheel StockSystem</span>
+              <span className="sidebar__logo-text">Flywheel </span>
               <button 
                 onClick={() => window.location.reload()} 
                 style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#6b7280', transition: 'color 0.2s' }}
@@ -173,6 +174,13 @@ export default function Sidebar({ collapsed, onToggle }) {
           )
         )}
       </nav>
+      {!displayCollapsed && (
+        <div className="sidebar__footer">
+          <button className="sidebar__footer-link" onClick={() => navigate('/guide')}>
+            System guide and Terms
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

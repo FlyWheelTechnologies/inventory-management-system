@@ -18,6 +18,7 @@ const SalesForm = ({
   const [customerName, setCustomerName] = useState(initialData.customerName || 'Walk-in Customer');
   const [customerSearch, setCustomerSearch] = useState(initialData.customerId ? initialData.customerName : '');
   const [customerPhone, setCustomerPhone] = useState(initialData.customerPhone || '+233');
+  const [customerEmail, setCustomerEmail] = useState(initialData.customerEmail || '');
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [items, setItems] = useState(initialData.items || [{ product_id:'', product_name:'', quantity:1, unit_price:0 }]);
   const [amountPaid, setAmountPaid] = useState(initialData.amountPaid || '');
@@ -31,9 +32,9 @@ const SalesForm = ({
 
   // --- Draft Persistence ---
   useEffect(() => {
-    const draft = { customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive };
+    const draft = { customerId, customerName, customerPhone, customerEmail, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive };
     localStorage.setItem("sales_draft", JSON.stringify(draft));
-  }, [customerId, customerName, customerPhone, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive]);
+  }, [customerId, customerName, customerPhone, customerEmail, items, amountPaid, paymentMethod, notes, isDeposit, taxPercentage, taxInclusive]);
 
   const filteredCustomers = customerSearch.length > 0
     ? customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
@@ -44,6 +45,7 @@ const SalesForm = ({
     setCustomerName(c.name);
     setCustomerSearch(c.name);
     setCustomerPhone(c.phone || '+233');
+    setCustomerEmail(c.email || '');
     setShowCustomerSuggestions(false);
 
     // Fetch customer credit balance
@@ -61,6 +63,7 @@ const SalesForm = ({
     setCustomerName(val || 'Walk-in Customer');
     setCustomerId('');
     setCustomerPhone('+233');
+    setCustomerEmail('');
     setShowCustomerSuggestions(true);
   };
 
@@ -84,7 +87,7 @@ const SalesForm = ({
     }
     
     onSave({
-      customerId, customerName, customerPhone, items, 
+      customerId, customerName, customerPhone, customerEmail, items, 
       amountPaid: finalAmountPaid.toString(), 
       paymentMethod, notes: finalNotes, isDeposit, taxPercentage, taxInclusive, useCredit, total, grandTotal, 
       balance: isDeposit ? balance : Math.max(0, balance)
@@ -96,7 +99,7 @@ const SalesForm = ({
       {/* SECTION 1: CUSTOMER & NOTES */}
       <div style={{ padding: 20, borderBottom: '1px solid #f3f4f6' }}>
         <h4 style={secH}>01. Customer Information</h4>
-        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:20 }}>
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Select Customer *</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -113,7 +116,7 @@ const SalesForm = ({
                 {showCustomerSuggestions && (
                   <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #ddd', borderRadius:8, zIndex:100, maxHeight:200, overflowY:'auto', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', marginTop:4 }}>
                     <div
-                      onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); }}
+                      onMouseDown={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); setCustomerEmail(''); }}
                       style={{ padding:'10px 12px', cursor:'pointer', fontSize:13, borderBottom:'1.5px solid #e5e7eb', fontWeight:700, color:'#f97316', background: '#fff7ed' }}
                     >
                       👤 Generic Walk-in Customer (Default)
@@ -136,7 +139,7 @@ const SalesForm = ({
               </div>
               <button
                 type="button"
-                onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); }}
+                onClick={() => { setCustomerId(''); setCustomerName('Walk-in Customer'); setCustomerSearch(''); setCustomerPhone('+233'); setCustomerEmail(''); }}
                 style={{ background:'#f3f4f6', border:'none', borderRadius:8, padding:'0 12px', cursor:'pointer', color:'#6b7280', fontSize:12, fontWeight:600 }}
               >
                 Reset
@@ -154,6 +157,16 @@ const SalesForm = ({
             />
           </div>
           <div>
+            <label style={lbl}>Customer Email</label>
+            <input
+              style={inp}
+              value={customerEmail}
+              onChange={e => setCustomerEmail(e.target.value)}
+              placeholder="customer@email.com"
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            />
+          </div>
+          <div style={{ gridColumn: '1 / span 3' }}>
             <label style={lbl}>Internal Sale Notes</label>
             <input style={inp} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / special packaging..." onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
             <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
