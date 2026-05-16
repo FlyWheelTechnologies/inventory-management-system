@@ -5,6 +5,7 @@ export interface EmailPayload {
   to: string;
   subject: string;
   html: string;
+  bcc?: string | string[];
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<void> {
@@ -24,6 +25,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
+      bcc: payload.bcc,
     }),
   });
 

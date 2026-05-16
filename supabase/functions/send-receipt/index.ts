@@ -49,9 +49,11 @@ Deno.serve(async (req: Request) => {
       return new Response(`Error fetching customer: ${error.message}`, { status: 500 });
     }
 
-    if (!customer?.email) {
-      console.log('Customer has no email — skipping');
-      return new Response('No email on file', { status: 200 });
+    const toEmail = customer?.email;
+    const adminEmail = 'florzyangel1@gmail.com';
+
+    if (!toEmail) {
+      console.log('Customer has no email — will send to admin only');
     }
 
     const isDeposit = record.payment_status === 'DEPOSIT';
@@ -151,12 +153,15 @@ Deno.serve(async (req: Request) => {
       </div>
     `;
 
+    const shouldBcc = toEmail && toEmail !== adminEmail;
+
     await sendEmail({
-      to: customer.email,
+      to: toEmail || adminEmail,
       subject: isDeposit
         ? `Deposit Confirmation #${record.id.slice(0, 8).toUpperCase()} — FlorzyAngel Enterprise`
         : `Receipt #${record.id.slice(0, 8).toUpperCase()} — FlorzyAngel Enterprise`,
       html,
+      bcc: shouldBcc ? adminEmail : undefined,
     });
 
     return new Response(JSON.stringify({ sent: true }), {
