@@ -1,0 +1,3 @@
+## 2026-05-17 - [Expensive Component Calculations Blocking Inputs]
+**Learning:** [In React, large array operations (filter, reduce, sort) inside a component's render body will block the main thread on every re-render. When unmemoized components also manage frequent local state changes (like typing into an input field or showing modals), the expensive operations re-run on every keystroke, causing severe input lag.]
+**Action:** [Always wrap heavy derived state calculations (especially sorting, reducing, or filtering large datasets like sales and products) inside useMemo, and ensure they only re-run when their specific dependencies change, rather than on every state update in the component.]
