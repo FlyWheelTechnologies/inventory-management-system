@@ -4,12 +4,13 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const crypto = require('crypto');
 const { sendReceiptEmail, sendLowStockAlert } = require('./utils/mailer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'florzy_angel_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
 
 app.use(cors());
 app.use(express.json());
@@ -132,9 +133,10 @@ db.serialize(() => {
   const adminEmail = 'admin@florzyangel.com';
   db.get('SELECT id FROM users WHERE email = ?', [adminEmail], (err, row) => {
     if (!row) {
-      const hash = bcrypt.hashSync('admin123', 10);
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(12).toString('hex');
+      const hash = bcrypt.hashSync(defaultPassword, 10);
       db.run('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [adminEmail, hash, 'admin']);
-      console.log('Default admin created.');
+      console.log(`Default admin created. Password: ${process.env.DEFAULT_ADMIN_PASSWORD ? 'From Env' : defaultPassword}`);
     }
   });
 
