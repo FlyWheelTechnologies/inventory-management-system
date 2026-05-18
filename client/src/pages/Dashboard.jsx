@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -158,36 +158,34 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const todayDate = new Date().toDateString();
-  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-  const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-  const todayRevenue = todaySales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
-  const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
+  const { todaySales, todayCashIn, todayRevenue, stockValue, lowStockCount, depletedCount, bestSeller, totalRevenue, totalCost, grossMargin } = useMemo(() => {
+    const todayDate = new Date().toDateString();
+    const ts = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+    const tci = ts.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
+    const tr = ts.filter(s => s.payment_status !== 'DEPOSIT').reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
 
-  // Real Insights Calculations
-  const bestSeller = products.length > 0 
-    ? [...products]
-        .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
-        .slice(0, 3)
-        .map(p => p.name)
-    : [];
+    const sv = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const lsc = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
+    const dc = products.filter(p => p.stock_quantity <= 0).length;
 
-  const totalRevenue = sales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
-  const totalCost = sales.reduce((sum, s) => {
-    // Estimating cost if not explicitly recorded per sale
-    return sum + (parseFloat(s.total_amount) * 0.7); 
-  }, 0);
-  const grossMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100).toFixed(1) : "0.0";
+    // Real Insights Calculations
+    const bs = products.length > 0
+      ? [...products]
+          .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
+          .slice(0, 3)
+          .map(p => p.name)
+      : [];
+
+    const totR = sales.filter(s => s.payment_status !== 'DEPOSIT').reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
+    const totC = sales.reduce((sum, s) => sum + (parseFloat(s.total_amount) * 0.7), 0); // Estimating cost if not explicitly recorded per sale
+    const gm = totR > 0 ? ((totR - totC) / totR * 100).toFixed(1) : "0.0";
+
+    return { todaySales: ts, todayCashIn: tci, todayRevenue: tr, stockValue: sv, lowStockCount: lsc, depletedCount: dc, bestSeller: bs, totalRevenue: totR, totalCost: totC, grossMargin: gm };
+  }, [sales, products]);
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const getChartData = () => {
+  const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
       return Array.from({ length: days }, (_, i) => {
@@ -230,9 +228,7 @@ export default function Dashboard() {
       });
     }
     return [];
-  };
-
-  const chartData = getChartData();
+  }, [sales, expenses, timeframe]);
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
