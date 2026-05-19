@@ -1,0 +1,3 @@
+## 2024-05-20 - [Avoid synchronous large list reducers in unmemoized component renders]
+**Learning:** In React components like Dashboard that have frequent local state updates (e.g. typing in form inputs for deposits), performing synchronous array filtering and reducing over large lists (`sales`, `products`) directly in the render body blocks the main thread, leading to UI input lag.
+**Action:** Wrap heavy derived state calculations involving data lists inside `useMemo` hooks, keeping dependencies explicit, to ensure the expensive computations only run when the actual data arrays or timeframes change, not on every local state update.

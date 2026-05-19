@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -158,36 +158,53 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const todayDate = new Date().toDateString();
-  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-  const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-  const todayRevenue = todaySales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
-  const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
+  // ⚡ Bolt Performance Optimization:
+  // Memoize heavy derived list calculations to prevent blocking the main thread
+  // during frequent local state updates (like typing in deposit form).
+  const { todayDate, todaySales, todayCashIn, todayRevenue } = useMemo(() => {
+    const date = new Date().toDateString();
+    const ts = sales.filter(s => new Date(s.created_at).toDateString() === date);
+    return {
+      todayDate: date,
+      todaySales: ts,
+      todayCashIn: ts.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
+      todayRevenue: ts.filter(s => s.payment_status !== 'DEPOSIT')
+                      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0)
+    };
+  }, [sales]);
 
-  // Real Insights Calculations
-  const bestSeller = products.length > 0 
-    ? [...products]
-        .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
-        .slice(0, 3)
-        .map(p => p.name)
-    : [];
+  const { stockValue, lowStockCount, depletedCount, bestSeller } = useMemo(() => {
+    return {
+      stockValue: products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0),
+      lowStockCount: products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length,
+      depletedCount: products.filter(p => p.stock_quantity <= 0).length,
+      bestSeller: products.length > 0
+        ? [...products]
+            .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
+            .slice(0, 3)
+            .map(p => p.name)
+        : []
+    };
+  }, [products]);
 
-  const totalRevenue = sales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
-  const totalCost = sales.reduce((sum, s) => {
-    // Estimating cost if not explicitly recorded per sale
-    return sum + (parseFloat(s.total_amount) * 0.7); 
-  }, 0);
-  const grossMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100).toFixed(1) : "0.0";
+  const { totalRevenue, totalCost, grossMargin } = useMemo(() => {
+    const rev = sales
+      .filter(s => s.payment_status !== 'DEPOSIT')
+      .reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
+    const cost = sales.reduce((sum, s) => {
+      // Estimating cost if not explicitly recorded per sale
+      return sum + (parseFloat(s.total_amount) * 0.7);
+    }, 0);
+    return {
+      totalRevenue: rev,
+      totalCost: cost,
+      grossMargin: rev > 0 ? ((rev - cost) / rev * 100).toFixed(1) : "0.0"
+    };
+  }, [sales]);
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const getChartData = () => {
+  const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
       return Array.from({ length: days }, (_, i) => {
@@ -230,9 +247,7 @@ export default function Dashboard() {
       });
     }
     return [];
-  };
-
-  const chartData = getChartData();
+  }, [sales, expenses, timeframe]);
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
