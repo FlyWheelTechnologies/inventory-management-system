@@ -182,7 +182,7 @@ function requireRole(...roles) {
     try {
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (!roles.includes(decoded.role)) {
+      if (roles.length > 0 && !roles.includes(decoded.role)) {
         return res.status(403).json({ error: 'Insufficient permissions' });
       }
       req.user = decoded;
@@ -238,6 +238,9 @@ app.put('/api/auth/profile', requireRole('admin', 'storekeeper', 'auditor'), asy
     res.json({ success: true, full_name, avatar_url });
   });
 });
+
+// Apply authentication to all subsequent API routes
+app.use('/api', requireRole());
 
 // ── Products ────────────────────────────────────────
 app.get('/api/products', async (req, res) => {
