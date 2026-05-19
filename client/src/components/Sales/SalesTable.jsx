@@ -80,7 +80,7 @@ const SalesTable = ({
 
               return (
                 <tr key={s.id}>
-                  <td className="table-code">#INV-{String(s.invoice_no || s.id).slice(-6).padStart(3, '0')}</td>
+                  <td className="table-code">{s.invoice_no ? s.invoice_no : `#INV-${String(s.id).slice(-6).padStart(3, '0')}`}</td>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td>{s.customer_name}</td>
                   <td style={{fontWeight:600}}>GHS {formatCurrency(s.total_amount)}</td>

@@ -24,7 +24,7 @@ export const SalesService = {
     doc.setFontSize(8);
     doc.setTextColor(55, 65, 81);
     doc.setFont(undefined, 'bold');
-    doc.text(`INVOICE: #INV-${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}`, 5, 19);
+    doc.text(`INVOICE: ${sale.invoice_no || '#INV-' + String(sale.id).slice(-6).padStart(3, '0')}`, 5, 19);
     doc.setFont(undefined, 'normal');
     doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 23);
     doc.text(`Customer: ${sale.customer_name}`, 5, 27);
@@ -83,7 +83,7 @@ export const SalesService = {
     doc.setFontSize(6);
     doc.text('powered by bookflywheel.com', 40, 146, { align: 'center' });
 
-    doc.save(`Receipt_INV_${String(sale.invoice_no || sale.id).slice(-6).padStart(3, '0')}.pdf`);
+    doc.save(`Receipt_${sale.invoice_no || 'INV_' + String(sale.id).slice(-6).padStart(3, '0')}.pdf`);
   },
 
   /**
@@ -115,7 +115,7 @@ export const SalesService = {
       throw new Error("No phone number available for this customer.");
     }
 
-    const invoiceNo = `INV-${String(sale.invoice_no || sale.id || '000').slice(-6).padStart(3, '0')}`;
+    const invoiceNo = sale.invoice_no || `INV-${String(sale.id || '000').slice(-6).padStart(3, '0')}`;
     const date = new Date(sale.created_at || new Date()).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -181,7 +181,7 @@ export const SalesService = {
       const net = total - tax;
       
       return [
-        `INV-${String(s.invoice_no || s.id).padStart(3, '0')}`,
+        s.invoice_no || `INV-${String(s.id).slice(-6).padStart(3, '0')}`,
         new Date(s.created_at).toLocaleDateString(),
         s.customer_name,
         net.toFixed(2),

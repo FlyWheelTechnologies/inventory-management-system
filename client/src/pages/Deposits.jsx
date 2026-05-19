@@ -304,7 +304,7 @@ export default function Deposits() {
                               {customerOrders.map(order => (
                                 <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' }}>
                                   <div>
-                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{order.total_amount === 0 ? '💰 Pure Prepayment' : `Order #INV-${String(order.invoice_no || order.id).slice(-6)}`}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{order.total_amount === 0 ? '💰 Pure Prepayment' : (order.invoice_no ? order.invoice_no : `Order #INV-${String(order.id).slice(-6)}`)}</div>
                                     <div style={{ fontSize: 11, color: '#6b7280' }}>
                                       {new Date(order.created_at).toLocaleString()} • GHS {formatCurrency(parseFloat(order.total_amount === 0 ? order.amount_paid : order.total_amount) || 0)}
                                       {order.total_amount === 0 && <span style={{ marginLeft: 8, color: '#059669', fontWeight: 700 }}>(Credit Added)</span>}

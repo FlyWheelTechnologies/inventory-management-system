@@ -86,10 +86,20 @@ export default function Sales() {
 
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       const salesToImport = [];
+      let lastValidDate = null;
+
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
         const row = {};
         headers.forEach((h, idx) => row[h] = values[idx]);
+
+        // Carry forward the date if empty
+        if (row.date) {
+          lastValidDate = row.date;
+        } else {
+          row.date = lastValidDate;
+        }
+
         salesToImport.push(row);
       }
 
@@ -121,7 +131,9 @@ export default function Sales() {
               p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import',
               p_tax_percentage: 0,
               p_tax_inclusive: true,
-              p_credit_used: 0
+              p_credit_used: 0,
+              p_created_at: row.date ? `${row.date} 00:00:00+00` : null,
+              p_invoice_no: row.invoice_no || null
             };
 
             await SalesService.recordSaleTransaction(payload);

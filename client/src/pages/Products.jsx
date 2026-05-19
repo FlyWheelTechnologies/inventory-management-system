@@ -187,8 +187,6 @@ export default function Products() {
     reader.readAsText(file);
   };
 
-  const [itemsToShow, setItemsToShow] = useState(25);
-
   const filtered = products
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
     .filter(p => categoryFilter === 'All' || p.category === categoryFilter)
@@ -206,7 +204,7 @@ export default function Products() {
       return a.name.localeCompare(b.name);
     });
 
-  const paginated = filtered.slice(0, itemsToShow);
+  const paginated = filtered;
 
   if (loading) {
     return (
@@ -473,17 +471,6 @@ export default function Products() {
             </tbody>
           </table>
         </div>
-        
-        {filtered.length > itemsToShow && (
-          <div style={{ padding: 20, textAlign: 'center', borderTop: '1px solid #f3f4f6' }}>
-            <button 
-              onClick={() => setItemsToShow(prev => prev + 25)}
-              style={{ width: '100%', padding: '12px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, color: '#4b5563', fontWeight: 600, cursor: 'pointer' }}
-            >
-              See More Products ↓
-            </button>
-          </div>
-        )}
       </div>
 
       <ConfirmationModal
