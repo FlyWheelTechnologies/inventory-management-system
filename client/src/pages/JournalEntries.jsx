@@ -3,6 +3,12 @@ import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
 import { formatCurrency } from "../services/formatters";
 
+const InfoTip = ({ text }) => (
+  <span className="info-tip" title={text}>ⓘ
+    <span className="info-tip__content">{text}</span>
+  </span>
+);
+
 const getAccountColor = (type) => {
   const t = type?.toUpperCase();
   if (t === 'REVENUE' || t === 'CASH_IN' || t === 'CASH') return { bg: '#ecfdf5', text: '#059669' }; // Green
@@ -211,20 +217,20 @@ export default function JournalEntries() {
 
       <div className="kpi-row" style={{ marginBottom:24 }}>
         <div className="stat-card">
-          <div className="stat-card__header"><span className="stat-card__label">Expected Revenue</span></div>
+          <div className="stat-card__header"><span className="stat-card__label">Expected Revenue <InfoTip text="Total sales recorded including tax. This is what you should have collected if all sales were paid." /></span></div>
           <div className="stat-card__value">GHS {formatCurrency(report.totalsales)}</div>
           <div style={{fontSize:11, color:'#6b7280', marginTop:4}}>Includes GHS {formatCurrency(report.totaltax)} Tax</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card__header"><span className="stat-card__label">Actual Cash In</span></div>
+          <div className="stat-card__header"><span className="stat-card__label">Actual Cash In <InfoTip text="Money actually received from customers via cash, momo, or bank deposits." /></span></div>
           <div className="stat-card__value" style={{color:'#059669'}}>GHS {formatCurrency(report.totalpaid)}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card__header"><span className="stat-card__label">Total Expenses</span></div>
+          <div className="stat-card__header"><span className="stat-card__label">Total Expenses <InfoTip text="All operational costs recorded: utilities, staff, supplies, rent, etc." /></span></div>
           <div className="stat-card__value" style={{color:'#ef4444'}}>GHS {formatCurrency(report.totalexpenses)}</div>
         </div>
         <div className="stat-card" style={{borderLeft:'3px solid var(--brand-primary)'}}>
-          <div className="stat-card__header"><span className="stat-card__label">Net Cash Balance</span></div>
+          <div className="stat-card__header"><span className="stat-card__label">Net Cash Balance <InfoTip text="What you have left after expenses. Calculated as: Actual Cash In - Total Expenses." /></span></div>
           <div className="stat-card__value" style={{color: report.netcash >= 0 ? '#059669' : '#ef4444'}}>GHS {formatCurrency(report.netcash)}</div>
         </div>
       </div>
