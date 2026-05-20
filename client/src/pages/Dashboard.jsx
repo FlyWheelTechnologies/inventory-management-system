@@ -165,6 +165,9 @@ export default function Dashboard() {
     .filter(s => s.payment_status !== 'DEPOSIT')
     .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
   const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+  const totalSalesValue = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+  const totalProfit = totalSalesValue - stockValue;
+  const profitPercentage = stockValue > 0 ? ((totalProfit / stockValue) * 100).toFixed(1) : 0;
   const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
   const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
 
@@ -176,14 +179,7 @@ export default function Dashboard() {
         .map(p => p.name)
     : [];
 
-  const totalRevenue = sales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0);
-  const totalCost = sales.reduce((sum, s) => {
-    // Estimating cost if not explicitly recorded per sale
-    return sum + (parseFloat(s.total_amount) * 0.7); 
-  }, 0);
-  const grossMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100).toFixed(1) : "0.0";
+  const actualGrossMargin = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100).toFixed(1) : "0.0";
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
@@ -243,7 +239,7 @@ export default function Dashboard() {
             <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
             <p className="greeting-sub">
               {depletedCount > 0 ? (
-                <span style={{ color: '#ef4444', fontWeight: 800 }}>⚠️ {depletedCount} ITEMS ARE COMPLETELY DEPLETED! </span>
+                <span style={{ color: '#ef4444', fontWeight: 800 }}>⚠️ {depletedCount} items are completely depleted! </span>
               ) : lowStockCount > 0 ? (
                 `You have ${lowStockCount} items running low. `
               ) : (
@@ -296,11 +292,24 @@ export default function Dashboard() {
             icon="📦"
           />
         ) : (
-          <StatCard
-            label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
-            value={`GHS ${formatCurrency(stockValue)}`}
-            icon="📦"
-          />
+          <>
+            <StatCard
+              label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
+              value={`GHS ${formatCurrency(stockValue)}`}
+              icon="📦"
+            />
+            <StatCard
+              label={<>Sales Value <InfoTip text="Total cash you'll collect if everything sells. The % shows your 'Markup'—how much you added on top of the cost price." /></>}
+              value={`GHS ${formatCurrency(totalSalesValue)}`}
+              icon="💵"
+            >
+              {totalProfit > 0 && (
+                <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+                  +GHS {formatCurrency(totalProfit)} (+{profitPercentage}%)
+                </div>
+              )}
+            </StatCard>
+          </>
         )}
         <StatCard
           label={<>Low Stock <InfoTip text="Items that have fallen below their minimum threshold." /></>}
@@ -413,9 +422,9 @@ export default function Dashboard() {
                     <div className="summary-card__sub">Top items by volume</div>
                   </div>
                   <div className="summary-card" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>
-                    <div className="summary-card__label" style={{ color: '#065f46' }}>Gross Margin</div>
-                    <div className="summary-card__value" style={{ color: '#065f46' }}>{grossMargin}%</div>
-                    <div className="summary-card__sub" style={{ color: '#047857' }}>Healthy profitability</div>
+                    <div className="summary-card__label" style={{ color: '#065f46' }}>Gross Margin <InfoTip text="How much of your current sales is actual profit. It shows what percentage of every GHS 1 earned is yours to keep after paying for the products." /></div>
+                    <div className="summary-card__value" style={{ color: '#065f46' }}>{actualGrossMargin}%</div>
+                    <div className="summary-card__sub" style={{ color: '#047857' }}>Based on current stock pricing</div>
                   </div>
                 </div>
               </>
