@@ -55,6 +55,46 @@ describe('mailer utils', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should call resend with adminEmail if customer has no email but adminEmail is provided', async () => {
+      const customerWithoutEmail = { name: 'John Doe' };
+      const result = await sendReceiptEmail(mockSale, customerWithoutEmail, 'admin@example.com');
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+        to: 'admin@example.com',
+        subject: expect.stringContaining('Receipt for Sale #123'),
+        html: expect.stringContaining('GHS 100.00')
+      }));
+      expect(result.success).toBe(true);
+    });
+
+    it('should call resend with adminEmail if customer is null but adminEmail is provided', async () => {
+      const result = await sendReceiptEmail(mockSale, null, 'admin@example.com');
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+        to: 'admin@example.com',
+        subject: expect.stringContaining('Receipt for Sale #123'),
+        html: expect.stringContaining('GHS 100.00')
+      }));
+      expect(result.success).toBe(true);
+    });
+
+    it('should call resend with both customer and admin emails if both are present', async () => {
+      const result = await sendReceiptEmail(mockSale, mockCustomer, 'admin@example.com');
+
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(mockSend).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        to: 'john@example.com',
+        subject: expect.stringContaining('Receipt for Sale #123')
+      }));
+      expect(mockSend).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        to: 'admin@example.com',
+        subject: expect.stringContaining('Receipt for Sale #123')
+      }));
+      expect(result.success).toBe(true);
+    });
+
     it('should handle resend errors gracefully', async () => {
       mockSend.mockRejectedValue(new Error('API Error'));
 

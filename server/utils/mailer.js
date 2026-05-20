@@ -18,14 +18,15 @@ const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
-const sendReceiptEmail = async (sale, customer) => {
-  if (!customer?.email) return;
+const sendReceiptEmail = async (sale, customer, adminEmail) => {
+  if (!customer?.email && !adminEmail) return;
 
   const subject = `Receipt for Sale #${sale.id} - Flywheel`;
+  const customerName = customer?.name || sale.customer_name || 'Walk-in Customer';
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">
       <h2 style="color: #2563eb;">Flywheel Stock Management</h2>
-      <p>Hi ${customer.name},</p>
+      <p>Hi ${customerName},</p>
       <p>Thank you for your purchase. Here are your transaction details:</p>
       
       <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
@@ -57,7 +58,25 @@ const sendReceiptEmail = async (sale, customer) => {
     </div>
   `;
 
-  return sendEmail({ to: customer.email, subject, html });
+  const results = [];
+  if (customer?.email) {
+    try {
+      const res = await sendEmail({ to: customer.email, subject, html });
+      results.push(res);
+    } catch (e) {
+      console.error('Error sending customer receipt email:', e);
+    }
+  }
+  if (adminEmail) {
+    try {
+      const res = await sendEmail({ to: adminEmail, subject, html });
+      results.push(res);
+    } catch (e) {
+      console.error('Error sending admin receipt email:', e);
+    }
+  }
+
+  return results.length > 0 ? results[0] : undefined;
 };
 
 const sendLowStockAlert = async (adminEmail, product) => {

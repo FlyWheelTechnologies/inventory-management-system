@@ -384,23 +384,35 @@ app.post('/api/sales', async (req, res) => {
     // Background Tasks: Emails
     (async () => {
       try {
-        // 1. Send Receipt to Customer
+        // Fetch Admin
+        const admin = await dbGet('SELECT email FROM users WHERE role = "admin" LIMIT 1');
+        const adminEmail = admin ? admin.email : null;
+
+        // 1. Send Receipt to Customer and/or Admin
+        let customer = null;
         if (customer_id) {
-          const customer = await dbGet('SELECT * FROM customers WHERE id = ?', [customer_id]);
-          if (customer && customer.email) {
-            await sendReceiptEmail({ id: saleId, total_amount, amount_paid: paid, balance_due: balance, payment_status: status }, customer);
-          }
+          customer = await dbGet('SELECT * FROM customers WHERE id = ?', [customer_id]);
         }
+        await sendReceiptEmail(
+          { 
+            id: saleId, 
+            total_amount, 
+            amount_paid: paid, 
+            balance_due: balance, 
+            payment_status: status, 
+            customer_name,
+            created_at: new Date().toISOString()
+          }, 
+          customer, 
+          adminEmail
+        );
 
         // 2. Check Low Stock & Notify Admin
-        if (items && items.length > 0) {
-          const admin = await dbGet('SELECT email FROM users WHERE role = "admin" LIMIT 1');
-          if (admin) {
-            for (const item of items) {
-              const product = await dbGet('SELECT * FROM products WHERE id = ?', [item.product_id]);
-              if (product && product.stock_quantity < product.low_stock_threshold) {
-                await sendLowStockAlert(admin.email, product);
-              }
+        if (items && items.length > 0 && adminEmail) {
+          for (const item of items) {
+            const product = await dbGet('SELECT * FROM products WHERE id = ?', [item.product_id]);
+            if (product && product.stock_quantity < product.low_stock_threshold) {
+              await sendLowStockAlert(adminEmail, product);
             }
           }
         }
