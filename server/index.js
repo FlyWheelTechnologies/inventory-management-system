@@ -239,6 +239,9 @@ app.put('/api/auth/profile', requireRole('admin', 'storekeeper', 'auditor'), asy
   });
 });
 
+// ── Protect API Routes ──────────────────────────────
+app.use('/api', requireRole('admin', 'storekeeper', 'auditor'));
+
 // ── Products ────────────────────────────────────────
 app.get('/api/products', async (req, res) => {
   const rows = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
