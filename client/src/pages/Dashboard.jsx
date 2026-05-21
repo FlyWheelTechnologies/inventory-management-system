@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -158,32 +158,49 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const todayDate = new Date().toDateString();
-  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-  const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-  const todayRevenue = todaySales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const totalSalesValue = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const totalProfit = totalSalesValue - stockValue;
-  const profitPercentage = stockValue > 0 ? ((totalProfit / stockValue) * 100).toFixed(1) : 0;
-  const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
-  const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
+  // ⚡ Bolt Optimization: Memoize heavy derived state calculations to prevent blocking UI thread on re-renders
+  const {
+    todaySales, todayCashIn, todayRevenue,
+    stockValue, totalSalesValue, totalProfit,
+    profitPercentage, lowStockCount, depletedCount,
+    bestSeller, actualGrossMargin
+  } = useMemo(() => {
+    const todayDate = new Date().toDateString();
+    const tSales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+    const tCashIn = tSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
+    const tRevenue = tSales
+      .filter(s => s.payment_status !== 'DEPOSIT')
+      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
 
-  // Real Insights Calculations
-  const bestSeller = products.length > 0 
-    ? [...products]
-        .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
-        .slice(0, 3)
-        .map(p => p.name)
-    : [];
+    const sValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const tsValue = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const tProfit = tsValue - sValue;
+    const pPercentage = sValue > 0 ? ((tProfit / sValue) * 100).toFixed(1) : 0;
+    const lsCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
+    const dCount = products.filter(p => p.stock_quantity <= 0).length;
 
-  const actualGrossMargin = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100).toFixed(1) : "0.0";
+    // Real Insights Calculations
+    const bSeller = products.length > 0
+      ? [...products]
+          .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
+          .slice(0, 3)
+          .map(p => p.name)
+      : [];
+
+    const aGrossMargin = tsValue > 0 ? ((tProfit / tsValue) * 100).toFixed(1) : "0.0";
+
+    return {
+      todaySales: tSales, todayCashIn: tCashIn, todayRevenue: tRevenue,
+      stockValue: sValue, totalSalesValue: tsValue, totalProfit: tProfit,
+      profitPercentage: pPercentage, lowStockCount: lsCount, depletedCount: dCount,
+      bestSeller: bSeller, actualGrossMargin: aGrossMargin
+    };
+  }, [sales, products]);
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const getChartData = () => {
+  // ⚡ Bolt Optimization: Memoize chart data computation to avoid O(N*M) calculation on every render
+  const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
       return Array.from({ length: days }, (_, i) => {
@@ -226,9 +243,7 @@ export default function Dashboard() {
       });
     }
     return [];
-  };
-
-  const chartData = getChartData();
+  }, [timeframe, sales, expenses]);
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
