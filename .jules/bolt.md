@@ -1,0 +1,3 @@
+## 2024-05-23 - Heavy Array Transformations in Render Loop
+**Learning:** React functional components in this codebase (like `Dashboard.jsx`) often recalculate large derived state (e.g., iterating through all sales and products using `filter` and `reduce`) directly in the render body. This causes unnecessary recalculations and lag during minor state updates. Also, multiple separate array traversals on the same array are commonly used rather than fusing loops.
+**Action:** Always fuse sequential array iterations (`filter`, `reduce`, etc.) on the same dataset into single loops, and wrap these complex mathematical transformations in `useMemo` hooks with appropriate dependency arrays to preserve frame rates and minimize UI thread blocking during renders.

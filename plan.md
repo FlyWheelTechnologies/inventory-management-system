@@ -1,0 +1,1 @@
+1. `Dashboard.jsx` calculates a bunch of complex stats (like `todayCashIn`, `stockValue`, `totalSalesValue`, etc.) synchronously inside the render cycle. This will cause lag when state updates if `sales` or `products` are large arrays. I should wrap these calculations in a `useMemo` block.
