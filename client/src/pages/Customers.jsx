@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -117,16 +117,20 @@ export default function Customers() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const filtered = customers
-    .filter(c => 
-      c.name?.toLowerCase().includes(search.toLowerCase()) || 
-      c.phone?.includes(search)
-    )
-    .sort((a, b) => {
-      if (sortBy === 'spent') return (b.total_spent || 0) - (a.total_spent || 0);
-      if (sortBy === 'orders') return (b.transaction_count || 0) - (a.transaction_count || 0);
-      return (a.name || "").localeCompare(b.name || "");
-    });
+  // ⚡ Bolt Performance Optimization: Memoize expensive filtering and sorting
+  // to prevent unnecessary re-computations on unrelated state changes (like pagination)
+  const filtered = useMemo(() => {
+    return customers
+      .filter(c =>
+        c.name?.toLowerCase().includes(search.toLowerCase()) ||
+        c.phone?.includes(search)
+      )
+      .sort((a, b) => {
+        if (sortBy === 'spent') return (b.total_spent || 0) - (a.total_spent || 0);
+        if (sortBy === 'orders') return (b.transaction_count || 0) - (a.transaction_count || 0);
+        return (a.name || "").localeCompare(b.name || "");
+      });
+  }, [customers, search, sortBy]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
