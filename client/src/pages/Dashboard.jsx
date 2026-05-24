@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -158,77 +158,110 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const todayDate = new Date().toDateString();
-  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-  const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-  const todayRevenue = todaySales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const totalSalesValue = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const totalProfit = totalSalesValue - stockValue;
-  const profitPercentage = stockValue > 0 ? ((totalProfit / stockValue) * 100).toFixed(1) : 0;
-  const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
-  const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
-
-  // Real Insights Calculations
-  const bestSeller = products.length > 0 
-    ? [...products]
-        .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
-        .slice(0, 3)
-        .map(p => p.name)
-    : [];
-
-  const actualGrossMargin = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100).toFixed(1) : "0.0";
-
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const getChartData = () => {
-    if (timeframe === '7d' || timeframe === '30d') {
-      const days = timeframe === '7d' ? 7 : 30;
-      return Array.from({ length: days }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (days - 1 - i));
-        const dateStr = d.toDateString();
-        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
-        return {
-          name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          Revenue: daySales,
-          Expenses: dayExpenses
-        };
-      });
-    }
+  // ⚡ Bolt: Memoize heavy derived state to prevent UI blocking during frequent local state updates (e.g. typing in deposit modal)
+  const memoizedState = useMemo(() => {
+    const todayDate = new Date().toDateString();
+    const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+    const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
+    const todayRevenue = todaySales
+      .filter(s => s.payment_status !== 'DEPOSIT')
+      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
 
-    if (timeframe === 'YoY') {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const thisYear = new Date().getFullYear();
-      const lastYear = thisYear - 1;
-      
-      return months.map((m, i) => {
-        const thisYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === thisYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
-        const lastYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === lastYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
-        return {
-          name: m,
-          'This Year': thisYearSales,
-          'Last Year': lastYearSales
-        };
-      });
-    }
-    return [];
-  };
+    const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const totalSalesValue = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const totalProfit = totalSalesValue - stockValue;
+    const profitPercentage = stockValue > 0 ? ((totalProfit / stockValue) * 100).toFixed(1) : 0;
 
-  const chartData = getChartData();
+    const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
+    const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
+
+    // Real Insights Calculations
+    const bestSeller = products.length > 0
+      ? [...products]
+          .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
+          .slice(0, 3)
+          .map(p => p.name)
+      : [];
+
+    const actualGrossMargin = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100).toFixed(1) : "0.0";
+
+    const getChartData = () => {
+      if (timeframe === '7d' || timeframe === '30d') {
+        const days = timeframe === '7d' ? 7 : 30;
+        return Array.from({ length: days }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (days - 1 - i));
+          const dateStr = d.toDateString();
+          const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
+                               .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+          const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
+                                     .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
+          return {
+            name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+            Revenue: daySales,
+            Expenses: dayExpenses
+          };
+        });
+      }
+
+      if (timeframe === 'YoY') {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const thisYear = new Date().getFullYear();
+        const lastYear = thisYear - 1;
+        
+        return months.map((m, i) => {
+          const thisYearSales = sales.filter(s => {
+            const d = new Date(s.created_at);
+            return d.getFullYear() === thisYear && d.getMonth() === i;
+          }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+
+          const lastYearSales = sales.filter(s => {
+            const d = new Date(s.created_at);
+            return d.getFullYear() === lastYear && d.getMonth() === i;
+          }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+
+          return {
+            name: m,
+            'This Year': thisYearSales,
+            'Last Year': lastYearSales
+          };
+        });
+      }
+      return [];
+    };
+
+    const chartData = getChartData();
+
+    return {
+      todayCashIn,
+      todayRevenue,
+      stockValue,
+      totalSalesValue,
+      totalProfit,
+      profitPercentage,
+      lowStockCount,
+      depletedCount,
+      bestSeller,
+      actualGrossMargin,
+      chartData
+    };
+  }, [sales, products, expenses, timeframe]);
+
+  const {
+    todayCashIn,
+    todayRevenue,
+    stockValue,
+    totalSalesValue,
+    totalProfit,
+    profitPercentage,
+    lowStockCount,
+    depletedCount,
+    bestSeller,
+    actualGrossMargin,
+    chartData
+  } = memoizedState;
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
