@@ -4,12 +4,18 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const crypto = require('crypto');
 const { sendReceiptEmail, sendLowStockAlert } = require('./utils/mailer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'florzy_angel_secret_key';
+
+// Security Enhancement: Avoid hardcoded secrets. Use env var or generate dynamic secret.
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.log('⚠️ WARNING: No JWT_SECRET in environment. A dynamic secret was generated. User sessions will invalidate on server restart.');
+}
 
 app.use(cors());
 app.use(express.json());
@@ -132,9 +138,16 @@ db.serialize(() => {
   const adminEmail = 'admin@florzyangel.com';
   db.get('SELECT id FROM users WHERE email = ?', [adminEmail], (err, row) => {
     if (!row) {
-      const hash = bcrypt.hashSync('admin123', 10);
+      // Security Enhancement: Avoid hardcoded admin password. Generate dynamic fallback and log it securely for initialization.
+      const generatedPassword = crypto.randomBytes(8).toString('hex');
+      const hash = bcrypt.hashSync(generatedPassword, 10);
       db.run('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [adminEmail, hash, 'admin']);
-      console.log('Default admin created.');
+      console.log('================================================================');
+      console.log('🛡️  SECURITY NOTICE: Default admin created.');
+      console.log(`Email: ${adminEmail}`);
+      console.log(`Generated Password: ${generatedPassword}`);
+      console.log('⚠️  Please login and change this password immediately.');
+      console.log('================================================================');
     }
   });
 
