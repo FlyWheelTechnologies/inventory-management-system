@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -60,32 +60,34 @@ export default function Expenses() {
     link.click();
   };
 
-  const filtered = expenses
-    .filter(e => e.description.toLowerCase().includes(search.toLowerCase()))
-    .filter(e => {
-      if (timeframe === 'All') return true;
-      const date = new Date(e.created_at);
-      const today = new Date();
-      if (timeframe === 'Today') return date.toDateString() === today.toDateString();
-      if (timeframe === 'Week') {
-        const lastWeek = new Date();
-        lastWeek.setDate(today.getDate() - 7);
-        return date >= lastWeek;
-      }
-      if (timeframe === 'Month') return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
-      if (sortBy === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
-      if (sortBy === 'amount_high') return parseFloat(b.amount) - parseFloat(a.amount);
-      if (sortBy === 'amount_low') return parseFloat(a.amount) - parseFloat(b.amount);
-      return 0;
-    });
+  const filtered = useMemo(() => {
+    return expenses
+      .filter(e => e.description.toLowerCase().includes(search.toLowerCase()))
+      .filter(e => {
+        if (timeframe === 'All') return true;
+        const date = new Date(e.created_at);
+        const today = new Date();
+        if (timeframe === 'Today') return date.toDateString() === today.toDateString();
+        if (timeframe === 'Week') {
+          const lastWeek = new Date();
+          lastWeek.setDate(today.getDate() - 7);
+          return date >= lastWeek;
+        }
+        if (timeframe === 'Month') return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+        if (sortBy === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+        if (sortBy === 'amount_high') return parseFloat(b.amount) - parseFloat(a.amount);
+        if (sortBy === 'amount_low') return parseFloat(a.amount) - parseFloat(b.amount);
+        return 0;
+      });
+  }, [expenses, search, timeframe, sortBy]);
 
-  const paginated = filtered.slice(0, itemsToShow);
+  const paginated = useMemo(() => filtered.slice(0, itemsToShow), [filtered, itemsToShow]);
 
-  const totalExpenses = filtered.reduce((a, e) => a + parseFloat(e.amount), 0);
+  const totalExpenses = useMemo(() => filtered.reduce((a, e) => a + parseFloat(e.amount), 0), [filtered]);
 
   if (loading) {
     return (

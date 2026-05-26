@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
 import { formatCurrency } from "../services/formatters";
@@ -52,29 +52,35 @@ export default function JournalEntries() {
   }, []);
   
   // Filter data based on selected date/mode
-  const filteredSales = sales.filter(s => {
-    if (viewMode === 'Daily') return s.created_at.startsWith(selectedDate);
-    if (viewMode === 'Monthly') return s.created_at.startsWith(selectedDate.substring(0, 7));
-    return true; // All Time
-  });
+  const filteredSales = useMemo(() => {
+    return sales.filter(s => {
+      if (viewMode === 'Daily') return s.created_at.startsWith(selectedDate);
+      if (viewMode === 'Monthly') return s.created_at.startsWith(selectedDate.substring(0, 7));
+      return true; // All Time
+    });
+  }, [sales, viewMode, selectedDate]);
 
-  const filteredExpenses = expenses.filter(e => {
-    if (viewMode === 'Daily') return e.created_at.startsWith(selectedDate);
-    if (viewMode === 'Monthly') return e.created_at.startsWith(selectedDate.substring(0, 7));
-    return true;
-  });
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(e => {
+      if (viewMode === 'Daily') return e.created_at.startsWith(selectedDate);
+      if (viewMode === 'Monthly') return e.created_at.startsWith(selectedDate.substring(0, 7));
+      return true;
+    });
+  }, [expenses, viewMode, selectedDate]);
 
   // Calculate totals for the summary cards
-  const report = {
-    totalsales: filteredSales.filter(s => s.payment_status !== 'DEPOSIT').reduce((a, s) => a + parseFloat(s.total_amount || 0), 0),
-    totalpaid: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
-    totalexpenses: filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0),
-    totaltax: filteredSales.filter(s => s.payment_status !== 'DEPOSIT').reduce((a, s) => a + parseFloat(s.tax_amount || 0), 0),
-    netcash: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0) - filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0)
-  };
+  const report = useMemo(() => {
+    return {
+      totalsales: filteredSales.filter(s => s.payment_status !== 'DEPOSIT').reduce((a, s) => a + parseFloat(s.total_amount || 0), 0),
+      totalpaid: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0),
+      totalexpenses: filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0),
+      totaltax: filteredSales.filter(s => s.payment_status !== 'DEPOSIT').reduce((a, s) => a + parseFloat(s.tax_amount || 0), 0),
+      netcash: filteredSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0) - filteredExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0)
+    };
+  }, [filteredSales, filteredExpenses]);
 
   // Grouping logic for Monthly and All Time
-  const getAggregatedData = () => {
+  const getAggregatedData = useMemo(() => {
     const grouped = {};
     const source = journal
       .filter(j => {
@@ -96,13 +102,13 @@ export default function JournalEntries() {
     });
 
     return Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date));
-  };
+  }, [journal, viewMode, selectedDate, accountTypeFilter]);
 
-  const currentData = getAggregatedData();
-  const paginated = currentData.slice(0, itemsToShow);
+  const currentData = getAggregatedData; // getAggregatedData is already an array now instead of a function
+  const paginated = useMemo(() => currentData.slice(0, itemsToShow), [currentData, itemsToShow]);
 
-  const totalDebits = currentData.reduce((a, j) => a + (j.debit || 0), 0);
-  const totalCredits = currentData.reduce((a, j) => a + (j.credit || 0), 0);
+  const totalDebits = useMemo(() => currentData.reduce((a, j) => a + (j.debit || 0), 0), [currentData]);
+  const totalCredits = useMemo(() => currentData.reduce((a, j) => a + (j.credit || 0), 0), [currentData]);
 
   const handleExportCSV = () => {
     const isExportAll = viewMode === 'Monthly' || viewMode === 'AllTime';

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -164,25 +164,27 @@ export default function Deposits() {
     }
   };
 
-  const filtered = deposits
-    .filter(d => {
-      const matchesSearch = d.customer_name?.toLowerCase().includes(search.toLowerCase()) || d.phone?.includes(search);
-      const hasBalanceOrPending = (d.total_balance || 0) !== 0 || (d.pending_sales_count || 0) > 0;
-      return matchesSearch && hasBalanceOrPending;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'latest') return new Date(b.last_sale_date) - new Date(a.last_sale_date);
-      if (sortBy === 'oldest') return new Date(a.last_sale_date) - new Date(b.last_sale_date);
-      if (sortBy === 'credit_high') return a.total_balance - b.total_balance;
-      if (sortBy === 'debt_high') return b.total_balance - a.total_balance;
-      if (sortBy === 'name_az') return a.customer_name.localeCompare(b.customer_name);
-      return new Date(b.last_sale_date) - new Date(a.last_sale_date);
-    });
+  const filtered = useMemo(() => {
+    return deposits
+      .filter(d => {
+        const matchesSearch = d.customer_name?.toLowerCase().includes(search.toLowerCase()) || d.phone?.includes(search);
+        const hasBalanceOrPending = (d.total_balance || 0) !== 0 || (d.pending_sales_count || 0) > 0;
+        return matchesSearch && hasBalanceOrPending;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'latest') return new Date(b.last_sale_date) - new Date(a.last_sale_date);
+        if (sortBy === 'oldest') return new Date(a.last_sale_date) - new Date(b.last_sale_date);
+        if (sortBy === 'credit_high') return a.total_balance - b.total_balance;
+        if (sortBy === 'debt_high') return b.total_balance - a.total_balance;
+        if (sortBy === 'name_az') return a.customer_name.localeCompare(b.customer_name);
+        return new Date(b.last_sale_date) - new Date(a.last_sale_date);
+      });
+  }, [deposits, search, sortBy]);
 
-  const paginated = filtered.slice(0, itemsToShow);
+  const paginated = useMemo(() => filtered.slice(0, itemsToShow), [filtered, itemsToShow]);
 
-  const totalHeld = deposits.reduce((a, d) => a + ((d.total_balance || 0) < 0 ? Math.abs(d.total_balance || 0) : 0), 0);
-  const totalOwed = deposits.reduce((a, d) => a + ((d.total_balance || 0) > 0 ? (d.total_balance || 0) : 0), 0);
+  const totalHeld = useMemo(() => deposits.reduce((a, d) => a + ((d.total_balance || 0) < 0 ? Math.abs(d.total_balance || 0) : 0), 0), [deposits]);
+  const totalOwed = useMemo(() => deposits.reduce((a, d) => a + ((d.total_balance || 0) > 0 ? (d.total_balance || 0) : 0), 0), [deposits]);
 
   if (loading) {
     return (

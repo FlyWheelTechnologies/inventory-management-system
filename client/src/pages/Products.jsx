@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -187,22 +187,24 @@ export default function Products() {
     reader.readAsText(file);
   };
 
-  const filtered = products
-    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
-    .filter(p => categoryFilter === 'All' || p.category === categoryFilter)
-    .sort((a, b) => {
-      if (sortBy === 'stock_low') return a.stock_quantity - b.stock_quantity;
-      if (sortBy === 'stock_high') return b.stock_quantity - a.stock_quantity;
-      if (sortBy === 'price_high') return b.selling_price - a.selling_price;
-      if (sortBy === 'price_low') return a.selling_price - b.selling_price;
-      if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
-      if (sortBy === 'margin') {
-        const profitA = a.selling_price - a.cost_price;
-        const profitB = b.selling_price - b.cost_price;
-        return profitB - profitA;
-      }
-      return a.name.localeCompare(b.name);
-    });
+  const filtered = useMemo(() => {
+    return products
+      .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
+      .filter(p => categoryFilter === 'All' || p.category === categoryFilter)
+      .sort((a, b) => {
+        if (sortBy === 'stock_low') return a.stock_quantity - b.stock_quantity;
+        if (sortBy === 'stock_high') return b.stock_quantity - a.stock_quantity;
+        if (sortBy === 'price_high') return b.selling_price - a.selling_price;
+        if (sortBy === 'price_low') return a.selling_price - b.selling_price;
+        if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+        if (sortBy === 'margin') {
+          const profitA = a.selling_price - a.cost_price;
+          const profitB = b.selling_price - b.cost_price;
+          return profitB - profitA;
+        }
+        return a.name.localeCompare(b.name);
+      });
+  }, [products, search, categoryFilter, sortBy]);
 
   const paginated = filtered;
 
