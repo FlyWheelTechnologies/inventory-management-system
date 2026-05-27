@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -86,6 +86,9 @@ export default function Products() {
     e.preventDefault();
     if (saving) return;
     setSaving(true);
+
+    // Prevent JWT expired error by proactively refreshing session if dormant
+    await supabase.auth.getSession();
 
     const payload = {
       ...form,
@@ -187,22 +190,24 @@ export default function Products() {
     reader.readAsText(file);
   };
 
-  const filtered = products
-    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
-    .filter(p => categoryFilter === 'All' || p.category === categoryFilter)
-    .sort((a, b) => {
-      if (sortBy === 'stock_low') return a.stock_quantity - b.stock_quantity;
-      if (sortBy === 'stock_high') return b.stock_quantity - a.stock_quantity;
-      if (sortBy === 'price_high') return b.selling_price - a.selling_price;
-      if (sortBy === 'price_low') return a.selling_price - b.selling_price;
-      if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
-      if (sortBy === 'margin') {
-        const profitA = a.selling_price - a.cost_price;
-        const profitB = b.selling_price - b.cost_price;
-        return profitB - profitA;
-      }
-      return a.name.localeCompare(b.name);
-    });
+  const filtered = useMemo(() => {
+    return products
+      .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
+      .filter(p => categoryFilter === 'All' || p.category === categoryFilter)
+      .sort((a, b) => {
+        if (sortBy === 'stock_low') return a.stock_quantity - b.stock_quantity;
+        if (sortBy === 'stock_high') return b.stock_quantity - a.stock_quantity;
+        if (sortBy === 'price_high') return b.selling_price - a.selling_price;
+        if (sortBy === 'price_low') return a.selling_price - b.selling_price;
+        if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+        if (sortBy === 'margin') {
+          const profitA = a.selling_price - a.cost_price;
+          const profitB = b.selling_price - b.cost_price;
+          return profitB - profitA;
+        }
+        return a.name.localeCompare(b.name);
+      });
+  }, [products, search, categoryFilter, sortBy]);
 
   const paginated = filtered;
 
@@ -400,7 +405,7 @@ export default function Products() {
                 className="table-search" 
                 placeholder="Search..." 
                 value={search} 
-                onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} 
+                onChange={e => {setSearch(e.target.value);}} 
                 style={{ paddingLeft: 34, height: 32 }}
               />
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>

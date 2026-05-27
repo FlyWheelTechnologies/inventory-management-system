@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -129,28 +129,6 @@ export default function Dashboard() {
     doc.save(`FlorzyAngel_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  if (loading) {
-    return (
-      <div className="dashboard-container" style={{ padding: 30 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:30 }}>
-          <div className="skeleton" style={{ width: 350, height: 45 }} />
-          <div className="skeleton" style={{ width: 140, height: 40 }} />
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, marginBottom: 32 }}>
-          {[1,2,3,4].map(i => (
-            <div key={i} className="skeleton" style={{ height: 140, borderRadius: 16 }} />
-          ))}
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
-          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
-        </div>
-      </div>
-    );
-  }
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Morning";
@@ -158,32 +136,55 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const todayDate = new Date().toDateString();
-  const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-  const todayCashIn = todaySales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-  const todayRevenue = todaySales
-    .filter(s => s.payment_status !== 'DEPOSIT')
-    .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-  const stockValue = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const totalSalesValue = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
-  const totalProfit = totalSalesValue - stockValue;
-  const profitPercentage = stockValue > 0 ? ((totalProfit / stockValue) * 100).toFixed(1) : 0;
-  const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
-  const depletedCount = products.filter(p => p.stock_quantity <= 0).length;
+  const { todaySales, todayCashIn, todayRevenue } = useMemo(() => {
+    const todayDate = new Date().toDateString();
+    const tSales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
+    const tCashIn = tSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
+    const tRevenue = tSales
+      .filter(s => s.payment_status !== 'DEPOSIT')
+      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
+    return { todaySales: tSales, todayCashIn: tCashIn, todayRevenue: tRevenue };
+  }, [sales]);
 
-  // Real Insights Calculations
-  const bestSeller = products.length > 0 
-    ? [...products]
-        .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
-        .slice(0, 3)
-        .map(p => p.name)
-    : [];
+  const {
+    stockValue,
+    totalSalesValue,
+    totalProfit,
+    profitPercentage,
+    lowStockCount,
+    depletedCount,
+    bestSeller,
+    actualGrossMargin
+  } = useMemo(() => {
+    const sVal = products.reduce((acc, p) => acc + (parseFloat(p.cost_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const tSalesVal = products.reduce((acc, p) => acc + (parseFloat(p.selling_price || 0) * Math.max(0, parseFloat(p.stock_quantity || 0))), 0);
+    const tProfit = tSalesVal - sVal;
+    const pPct = sVal > 0 ? ((tProfit / sVal) * 100).toFixed(1) : 0;
+    const lowStock = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
+    const depleted = products.filter(p => p.stock_quantity <= 0).length;
+    const bSeller = products.length > 0 
+      ? [...products]
+          .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
+          .slice(0, 3)
+          .map(p => p.name)
+      : [];
+    const gMargin = tSalesVal > 0 ? ((tProfit / tSalesVal) * 100).toFixed(1) : "0.0";
 
-  const actualGrossMargin = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100).toFixed(1) : "0.0";
+    return {
+      stockValue: sVal,
+      totalSalesValue: tSalesVal,
+      totalProfit: tProfit,
+      profitPercentage: pPct,
+      lowStockCount: lowStock,
+      depletedCount: depleted,
+      bestSeller: bSeller,
+      actualGrossMargin: gMargin
+    };
+  }, [products]);
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const getChartData = () => {
+  const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
       return Array.from({ length: days }, (_, i) => {
@@ -226,9 +227,29 @@ export default function Dashboard() {
       });
     }
     return [];
-  };
+  }, [timeframe, sales, expenses]);
 
-  const chartData = getChartData();
+  if (loading) {
+    return (
+      <div className="dashboard-container" style={{ padding: 30 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:30 }}>
+          <div className="skeleton" style={{ width: 350, height: 45 }} />
+          <div className="skeleton" style={{ width: 140, height: 40 }} />
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, marginBottom: 32 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="skeleton" style={{ height: 140, borderRadius: 16 }} />
+          ))}
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
+          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
+          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>

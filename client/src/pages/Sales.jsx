@@ -161,6 +161,9 @@ export default function Sales() {
     setSaving(true);
     setError('');
 
+    // Prevent JWT expired error by proactively refreshing session if dormant
+    await supabase.auth.getSession();
+
     const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
 
     try {

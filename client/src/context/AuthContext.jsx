@@ -72,7 +72,17 @@ export function AuthProvider({ children }) {
     };
 
     initAuth();
-
+ 
+    // Refresh session when tab/window is focused (e.g. returning to the app after a while)
+    const handleFocus = async () => {
+      try {
+        await supabase.auth.getSession();
+      } catch (err) {
+        console.warn("Focus session refresh check failed:", err.message);
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+ 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && isMounted) {
         // Don't await here to avoid blocking the auth listener
@@ -84,9 +94,10 @@ export function AuthProvider({ children }) {
         localStorage.removeItem("user");
       }
     });
-
+ 
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", handleFocus);
       subscription.unsubscribe();
     };
   }, []);
