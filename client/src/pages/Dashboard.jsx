@@ -185,20 +185,37 @@ export default function Dashboard() {
   const userName = user?.full_name || user?.email?.split('@')[0];
 
   const chartData = useMemo(() => {
+    /*
+     * ⚡ Bolt Performance Optimization:
+     * Previously, the code iterated over the entire `sales` and `expenses` arrays inside a loop
+     * over days/months, causing an O(M * N) time complexity with excessive `new Date` instantiations.
+     * This refactor pre-groups data into dictionaries (O(N) single pass) and uses O(1) lookups,
+     * drastically reducing main thread blocking on large datasets and improving rendering speed.
+     */
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
+
+      const salesByDate = {};
+      for (const s of sales) {
+        const dStr = new Date(s.created_at).toDateString();
+        salesByDate[dStr] = (salesByDate[dStr] || 0) + parseFloat(s.amount_paid || 0);
+      }
+
+      const expensesByDate = {};
+      for (const e of expenses) {
+        const dStr = new Date(e.created_at).toDateString();
+        expensesByDate[dStr] = (expensesByDate[dStr] || 0) + parseFloat(e.amount || 0);
+      }
+
       return Array.from({ length: days }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (days - 1 - i));
         const dateStr = d.toDateString();
-        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
+
         return {
           name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          Revenue: daySales,
-          Expenses: dayExpenses
+          Revenue: salesByDate[dateStr] || 0,
+          Expenses: expensesByDate[dateStr] || 0
         };
       });
     }
@@ -208,21 +225,18 @@ export default function Dashboard() {
       const thisYear = new Date().getFullYear();
       const lastYear = thisYear - 1;
       
+      const salesByYearMonth = {};
+      for (const s of sales) {
+        const d = new Date(s.created_at);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        salesByYearMonth[key] = (salesByYearMonth[key] || 0) + parseFloat(s.amount_paid || 0);
+      }
+
       return months.map((m, i) => {
-        const thisYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === thisYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
-        const lastYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === lastYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
         return {
           name: m,
-          'This Year': thisYearSales,
-          'Last Year': lastYearSales
+          'This Year': salesByYearMonth[`${thisYear}-${i}`] || 0,
+          'Last Year': salesByYearMonth[`${lastYear}-${i}`] || 0
         };
       });
     }

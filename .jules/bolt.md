@@ -1,0 +1,3 @@
+## 2024-05-27 - O(M*N) Filter Iteration in Dashboard Charting
+**Learning:** In `Dashboard.jsx`, the original implementation computed the chart data by iterating through all `sales` and `expenses` array elements *for every single day* in the timeframe loop (e.g. 30 times for `30d`). In each inner iteration, it instantiated `new Date(s.created_at)` causing O(M*N) complexity. With thousands of items, this blocked the main thread and caused extreme unresponsiveness.
+**Action:** When working with time-series or grouping operations, pre-aggregate data in a single pass into a dictionary (`O(N)`) mapping date strings to values, so that the display generation loop can perform `O(1)` lookups.
