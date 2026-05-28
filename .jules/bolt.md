@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimizing Derived State Calculations in React
+**Learning:** Found a common anti-pattern where derived state arrays (like charting data) use O(N*M) nested loops by putting `.filter()` and `.reduce()` inside a `.map()`. In React, especially inside `useMemo`, this causes significant blocking of the main UI thread during renders because `Date` instantiations are repeated unnecessarily.
+**Action:** When working with time-series or relational data, always pre-aggregate large datasets (e.g., sales, expenses) into hash maps (dictionaries) using a single O(N) pass *before* iterating over the target structure (like days or months). This allows O(1) lookups during the map phase and drastically reduces unnecessary object instantiations.
