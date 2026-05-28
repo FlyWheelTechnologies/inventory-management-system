@@ -193,6 +193,8 @@ function requireRole(...roles) {
   };
 }
 
+const requireAuth = requireRole('admin', 'storekeeper', 'auditor');
+
 // Item code generator
 async function generateItemCode(category) {
   const prefixes = {
@@ -240,12 +242,12 @@ app.put('/api/auth/profile', requireRole('admin', 'storekeeper', 'auditor'), asy
 });
 
 // ── Products ────────────────────────────────────────
-app.get('/api/products', async (req, res) => {
+app.get('/api/products', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
   res.json(rows);
 });
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', requireAuth, async (req, res) => {
   try {
     const { name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, low_stock_threshold, user_email } = req.body;
     const item_code = req.body.item_code || await generateItemCode(category || 'General');
@@ -260,7 +262,7 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', requireAuth, async (req, res) => {
   const { name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity, low_stock_threshold } = req.body;
   await dbRun(
     'UPDATE products SET name=?, category=?, buying_uom=?, selling_uom=?, conversion_factor=?, cost_price=?, selling_price=?, stock_quantity=?, low_stock_threshold=? WHERE id=?',
@@ -269,14 +271,14 @@ app.put('/api/products/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requireAuth, async (req, res) => {
   await dbRun('DELETE FROM products WHERE id = ?', [req.params.id]);
   logAction('System', 'PRODUCT_DELETE', `Deleted product #${req.params.id}`);
   res.json({ success: true });
 });
 
 // ── Customers ───────────────────────────────────────
-app.get('/api/customers', async (req, res) => {
+app.get('/api/customers', requireAuth, async (req, res) => {
   try {
     const rows = await dbAll(`
       SELECT c.*, 
@@ -290,7 +292,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-app.post('/api/customers', async (req, res) => {
+app.post('/api/customers', requireAuth, async (req, res) => {
   const { name, phone, email, address, is_contractor } = req.body;
   const result = await dbRun(
     'INSERT INTO customers (name, phone, email, address, is_contractor) VALUES (?,?,?,?,?)',
@@ -300,13 +302,13 @@ app.post('/api/customers', async (req, res) => {
   res.json({ id: result.lastID });
 });
 
-app.get('/api/customers/:id/sales', async (req, res) => {
+app.get('/api/customers/:id/sales', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM sales WHERE customer_id = ? ORDER BY created_at DESC', [req.params.id]);
   res.json(rows);
 });
 
 // ── Debtors ─────────────────────────────────────────
-app.get('/api/debtors', async (req, res) => {
+app.get('/api/debtors', requireAuth, async (req, res) => {
   const rows = await dbAll(`
     SELECT c.id, c.name, c.phone, c.is_contractor,
       COALESCE(SUM(s.balance_due), 0) as total_debt,
@@ -321,17 +323,17 @@ app.get('/api/debtors', async (req, res) => {
 });
 
 // ── Sales (with line items + double-entry) ──────────
-app.get('/api/sales', async (req, res) => {
+app.get('/api/sales', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM sales ORDER BY created_at DESC');
   res.json(rows);
 });
 
-app.get('/api/sales/:id/items', async (req, res) => {
+app.get('/api/sales/:id/items', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM sale_items WHERE sale_id = ?', [req.params.id]);
   res.json(rows);
 });
 
-app.post('/api/sales', async (req, res) => {
+app.post('/api/sales', requireAuth, async (req, res) => {
   try {
     const { customer_id, customer_name, items, amount_paid, payment_method, notes, user_email } = req.body;
     
@@ -428,7 +430,7 @@ app.post('/api/sales', async (req, res) => {
 });
 
 // Record payment against existing debt
-app.post('/api/sales/:id/payment', async (req, res) => {
+app.post('/api/sales/:id/payment', requireAuth, async (req, res) => {
   const { amount, user_email } = req.body;
   const sale = await dbGet('SELECT * FROM sales WHERE id = ?', [req.params.id]);
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
@@ -451,18 +453,18 @@ app.post('/api/sales/:id/payment', async (req, res) => {
 });
 
 // ── Journal Entries ─────────────────────────────────
-app.get('/api/journal', async (req, res) => {
+app.get('/api/journal', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM journal_entries ORDER BY created_at DESC LIMIT 200');
   res.json(rows);
 });
 
 // ── Expenses ────────────────────────────────────────
-app.get('/api/expenses', async (req, res) => {
+app.get('/api/expenses', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM expenses ORDER BY created_at DESC');
   res.json(rows);
 });
 
-app.post('/api/expenses', async (req, res) => {
+app.post('/api/expenses', requireAuth, async (req, res) => {
   const { description, category, amount, user_email } = req.body;
   const result = await dbRun('INSERT INTO expenses (description, category, amount, recorded_by) VALUES (?,?,?,?)',
     [description, category || 'Misc', amount, user_email || 'System']);
@@ -476,7 +478,7 @@ app.post('/api/expenses', async (req, res) => {
 });
 
 // ── Daily Report ────────────────────────────────────
-app.get('/api/reports/daily', async (req, res) => {
+app.get('/api/reports/daily', requireAuth, async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const salesData = await dbAll("SELECT * FROM sales WHERE date(created_at) = date('now')");
   const expensesData = await dbAll("SELECT * FROM expenses WHERE date(created_at) = date('now')");
@@ -494,7 +496,7 @@ app.get('/api/reports/daily', async (req, res) => {
 });
 
 // ── Logs ────────────────────────────────────────────
-app.get('/api/logs', async (req, res) => {
+app.get('/api/logs', requireAuth, async (req, res) => {
   const rows = await dbAll('SELECT * FROM logs ORDER BY created_at DESC LIMIT 100');
   res.json(rows);
 });
