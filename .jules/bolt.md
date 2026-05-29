@@ -1,0 +1,3 @@
+## 2024-05-30 - O(N*M) nested loop blocking in React useMemo
+**Learning:** Found nested loops inside `useMemo` in `client/src/pages/Dashboard.jsx` iterating over large arrays of transactions to filter data. While `useMemo` stops some redundant work, nested O(N*M) passes inside it block the UI thread during necessary re-computations when state changes.
+**Action:** Replaced array filtering inside loops with O(N) single-pass hash map (dictionary) pre-aggregations for large dataset transformations to prevent main-thread blocking.
