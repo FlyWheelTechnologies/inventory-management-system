@@ -5,11 +5,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const { sendReceiptEmail, sendLowStockAlert } = require('./utils/mailer');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'florzy_angel_secret_key';
+
+if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET === undefined) {
+  console.error("FATAL ERROR: JWT_SECRET must be explicitly set in production.");
+  process.exit(1);
+}
 
 app.use(cors());
 app.use(express.json());
@@ -132,9 +138,18 @@ db.serialize(() => {
   const adminEmail = 'admin@florzyangel.com';
   db.get('SELECT id FROM users WHERE email = ?', [adminEmail], (err, row) => {
     if (!row) {
-      const hash = bcrypt.hashSync('admin123', 10);
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
+      const hash = bcrypt.hashSync(defaultPassword, 10);
       db.run('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [adminEmail, hash, 'admin']);
       console.log('Default admin created.');
+      if (!process.env.DEFAULT_ADMIN_PASSWORD) {
+        console.log(`\n=======================================================\n`);
+        console.log(`🚨 IMPORTANT: DEFAULT ADMIN PASSWORD GENERATED 🚨`);
+        console.log(`Email: ${adminEmail}`);
+        console.log(`Password: ${defaultPassword}`);
+        console.log(`Please login and change this password immediately.`);
+        console.log(`\n=======================================================\n`);
+      }
     }
   });
 
