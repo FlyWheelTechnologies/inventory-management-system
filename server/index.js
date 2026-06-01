@@ -174,22 +174,27 @@ const logAction = (email, action, details) => {
   db.run('INSERT INTO logs (user_email, action, details) VALUES (?, ?, ?)', [email, action, details]);
 };
 
+// Global Auth Middleware
+const requireAuth = (req, res, next) => {
+  if (req.path.startsWith('/auth/login') || req.path.startsWith('/auth/signup')) return next();
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'No token' });
+  try {
+    req.user = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+app.use('/api', requireAuth);
+
 // RBAC middleware
 function requireRole(...roles) {
   return (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'No token' });
-    try {
-      const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET);
-      if (!roles.includes(decoded.role)) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
-      }
-      req.user = decoded;
-      next();
-    } catch (e) {
-      return res.status(401).json({ error: 'Invalid token' });
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
     }
+    next();
   };
 }
 
@@ -581,6 +586,10 @@ app.put('/api/users/:id/role', requireRole('admin'), async (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`FlorzyAngel API running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`FlorzyAngel API running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
