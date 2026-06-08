@@ -52,6 +52,7 @@ export default function Products() {
   const [sortBy, setSortBy] = useState('name');
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null); // { message, type }
+  const [nameError, setNameError] = useState('');
 
   // --- Draft Persistence ---
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function Products() {
     localStorage.removeItem("product_draft");
     setForm({...emptyForm});
     setEditingId(null);
+    setNameError('');
   };
 
   const handleCategoryChange = (cat) => {
@@ -86,6 +88,14 @@ export default function Products() {
     e.preventDefault();
     if (saving) return;
     setSaving(true);
+
+    const trimmedName = (form.name || '').trim().toUpperCase();
+    const isDuplicate = products.some(p => p.name.trim().toUpperCase() === trimmedName && p.id !== editingId);
+    if (isDuplicate) {
+      setNameError(`Error: Product name ${form.name.trim()} already exists, please use another`);
+      setSaving(false);
+      return;
+    }
 
     // Prevent JWT expired error by proactively refreshing session if dormant
     await supabase.auth.getSession();
@@ -130,6 +140,7 @@ export default function Products() {
     setForm({ ...p });
     setEditingId(p.id);
     setShowForm(true);
+    setNameError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -237,7 +248,7 @@ export default function Products() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
         <h2 className="section-title">Product Inventory ({products.length} items)</h2>
         <div style={{ display:'flex', gap:10 }}>
-          <button className="quick-action-btn" onClick={() => { setShowForm(!showForm); if(showForm) {setForm({...emptyForm}); setEditingId(null);} }}>
+          <button className="quick-action-btn" onClick={() => { setShowForm(!showForm); if(showForm) {setForm({...emptyForm}); setEditingId(null); setNameError('');} }}>
             {showForm ? 'Cancel' : '+ Add Product'}
           </button>
           <button className="quick-action-btn" style={{background:'#374151'}} onClick={handleExport}>Export CSV</button>
@@ -283,7 +294,22 @@ export default function Products() {
               <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:20 }}>
                 <div>
                   <label style={lbl}>Product Name *</label>
-                  <input style={inp} value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value.toUpperCase()}))} required list="existing-products" autoComplete="off" />
+                  <input 
+                    style={nameError ? { ...inp, borderColor: '#ef4444', outline: 'none', boxShadow: '0 0 0 1px #ef4444' } : inp} 
+                    value={form.name} 
+                    onChange={e => {
+                      setForm(f=>({...f, name:e.target.value.toUpperCase()}));
+                      if (nameError) setNameError('');
+                    }} 
+                    required 
+                    list="existing-products" 
+                    autoComplete="off" 
+                  />
+                  {nameError && (
+                    <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, marginTop: '4px', display: 'block' }}>
+                      {nameError}
+                    </span>
+                  )}
                   <datalist id="existing-products">
                     {products.map(p => <option key={p.id} value={p.name} />)}
                   </datalist>
