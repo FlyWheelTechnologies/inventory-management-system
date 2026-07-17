@@ -108,5 +108,10 @@ BEGIN
 END;
 $function$;
 
+-- Explicit API grants for secure defaults compatibility
+GRANT EXECUTE ON FUNCTION public.record_sale_transaction(
+  integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text
+) TO anon, authenticated, service_role;
+
 -- Reload schema cache
 NOTIFY pgrst, 'reload schema';
