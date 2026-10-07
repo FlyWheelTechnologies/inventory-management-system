@@ -25,7 +25,10 @@ export default function SystemGuide() {
             <p><strong>4. System Availability and Modifications</strong><br />
             While we strive to ensure the system is available 24/7, we do not guarantee uninterrupted access. The system may be updated or modified at any time to improve features or fix issues.</p>
 
-            <p><strong>5. Limitation of Liability</strong><br />
+            <p><strong>5. Inactivity, Resource Allocation & Data Preservation</strong><br />
+            In the event of extended inactivity, sustained dormancy, or reduced transactional volume on an account or licensed copy of the system, allocated infrastructure resources may be wound down to a dormant state. Under all circumstances, customer data, inventory ledgers, and transaction records remain securely preserved, confidential, and intact. Full provisioned capacity can be promptly restored upon re-engagement.</p>
+
+            <p><strong>6. Limitation of Liability</strong><br />
             Flywheel Technologies and FlorzyAngel Enterprise are not liable for any data loss, financial loss, or business interruption resulting from the use or inability to use this system.</p>
           </div>
         </section>
