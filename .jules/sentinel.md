@@ -1,0 +1,4 @@
+## 2024-05-24 - [Global API Authentication Enforcement]
+**Vulnerability:** Found multiple sensitive API endpoints (e.g., `/api/products`, `/api/sales`) that lacked any authentication validation. The system relied entirely on developers remembering to explicitly attach `requireRole` middleware to specific endpoints, meaning any unannotated route was open to unauthenticated access (auth bypass).
+**Learning:** This "opt-in" security model is fragile and prone to human error when new endpoints are added. The application previously had no baseline authentication guard.
+**Prevention:** Implemented a "secure by default" global `requireAuth` middleware for all `/api` routes (excluding explicit public routes like `/auth/login`), ensuring that all endpoints are authenticated before any role-specific checks or business logic occurs.
