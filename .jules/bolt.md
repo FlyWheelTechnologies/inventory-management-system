@@ -1,0 +1,3 @@
+## 2024-06-01 - O(N) Hash Map Pre-aggregation for Time-series Data
+**Learning:** Performing time-series calculations by looping through days/months and then filtering large arrays inside the loop creates an O(M*N) bottleneck. Crucially, calling `new Date()` repeatedly within these inner loops causes heavy object instantiations that block the React main thread and drop frames, even when wrapped in `useMemo`.
+**Action:** Always pre-aggregate large arrays (like `sales` or `expenses`) into hash maps using a single O(N) pass, converting dates to strings or year/month keys. Then build the chart data in a fast O(M) loop looking up aggregated values from the dictionary.
